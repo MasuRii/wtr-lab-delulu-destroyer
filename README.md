@@ -1,4 +1,4 @@
-# 🦉 Delulu Destroyer for WTR Lab
+# 🐰 Delulu Destroyer for WTR Lab
 
 Tired of scrolling through WTR Lab and seeing genres, tags, or novel tropes you absolutely cannot stand? Delulu Destroyer is a lightweight, ultra-fast filter that lets you block and hide novels you have no interest in reading.
 
@@ -6,25 +6,35 @@ Out of sight, out of mind.
 
 [Install from Greasy Fork](https://greasyfork.org/en/scripts/575938-wtr-lab-delulu-destroyer) · [Install from GitHub](https://github.com/MasuRii/wtr-lab-delulu-destroyer/raw/main/WTR%20Lab%20Delulu%20Destroyer.user.js)
 
+## Preview
+
+Proof from the Greasy Fork listing:
+
+![Delulu Destroyer demo](https://files.catbox.moe/ariw4n.gif)
+
+![Delulu Destroyer screenshot](https://greasyfork.org/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjkxMTQxLCJwdXIiOiJibG9iX2lkIn19--48a6d1fd3b803d75aca05730004e96cd1fcd520a/Destroyer.png?locale=en)
+
 ## Features
 
-- **Sleek floating panel**: A compact crimson owl launcher sits in the bottom-right corner of WTR Lab.
+- **Sleek floating panel**: A compact crimson rabbit launcher sits in the bottom-right corner of WTR Lab.
 - **Smart input**: Type a genre, API tag, or custom keyword. The script labels each target with color-coded badges.
 - **Seamless browsing**: WTR Lab navigation and infinite-scroll updates are watched so blocked novels stay hidden as pages change.
 - **Auto-save**: Your blocklist and search mode are saved locally by your userscript manager.
 - **Safe purge**: Clearing the entire blocklist requires confirmation first.
+- **iOS-aware loading**: The script avoids Stay's page-injection path and applies saved filters as soon as it loads.
 
 ## Installation
 
 1. Install a userscript manager. Recommended options:
    - [ScriptCat](https://docs.scriptcat.org/en/)
    - [Violentmonkey](https://violentmonkey.github.io/)
+   - [Stay for Safari](https://apps.apple.com/app/id1591620171) on iOS Safari
 2. Open the [Greasy Fork script page](https://greasyfork.org/en/scripts/575938-wtr-lab-delulu-destroyer).
 3. Install the script through your userscript manager.
 4. Visit `https://wtr-lab.com/` and click the floating **Destroyer** button.
 
 > [!NOTE]
-> Tampermonkey may still work, but this project now prioritizes ScriptCat and Violentmonkey compatibility.
+> Tampermonkey may still work, but this project now prioritizes ScriptCat, Violentmonkey, and Stay compatibility.
 
 ## How to use
 
@@ -39,16 +49,27 @@ Out of sight, out of mind.
 - **Broad**: Checks novel titles, genres, and tags. This is the default and recommended mode.
 - **Strict**: Checks only official genres and tags, ignoring titles.
 
+## iOS Safari / Stay notes
+
+Stay must be enabled in Safari settings and allowed for WTR Lab before the script can run:
+
+1. Open **Settings → Safari → Extensions → Stay**.
+2. Enable Stay and allow it for all websites or for `wtr-lab.com`.
+3. Import the script from Greasy Fork or the GitHub raw URL.
+4. Activate the script from Stay's **Library** tab.
+
+The userscript metadata uses `@run-at document-end` and `@noframes`, and the source avoids `window.*` calls that make Stay switch into page-injection mode on iOS Safari.
+
 ## Compatibility
 
 - Target site: `https://wtr-lab.com/*`
-- Recommended managers: ScriptCat and Violentmonkey
+- Recommended managers: ScriptCat, Violentmonkey, and Stay
 - Output format: bundled JavaScript userscript generated from modular TypeScript
 - Browser support: modern browsers supported by the selected userscript manager
 
 ## Development
 
-The source is now modular TypeScript under `src/`. Webpack bundles it back into the distributable userscript file:
+The source is modular TypeScript under `src/`. Webpack bundles it back into the distributable userscript file:
 
 ```bash
 npm install

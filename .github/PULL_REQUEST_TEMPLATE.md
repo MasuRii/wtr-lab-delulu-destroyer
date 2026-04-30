@@ -5,7 +5,7 @@
 ## Validation
 
 - [ ] `npm run validate`
-- [ ] Installed generated userscript locally in ScriptCat or Violentmonkey
+- [ ] Installed generated userscript locally in ScriptCat, Violentmonkey, or Stay when compatibility is affected
 - [ ] Verified on affected WTR Lab page(s)
 
 ## Notes

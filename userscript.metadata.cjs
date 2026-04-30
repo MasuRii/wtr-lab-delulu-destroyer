@@ -12,7 +12,10 @@ const USERSCRIPT_METADATA = `// ==UserScript==
 // @license      MIT
 // @compatible   scriptcat
 // @compatible   violentmonkey
+// @compatible   stay
 // @compatible   tampermonkey
+// @run-at       document-end
+// @noframes
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue

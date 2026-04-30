@@ -1,7 +1,7 @@
 import { WTR_SVG } from './icon';
 
 export interface DestroyerUi {
-    launcher: HTMLDivElement;
+    launcher: HTMLButtonElement;
     panel: HTMLDivElement;
     modalOverlay: HTMLDivElement;
     selectMatch: HTMLSelectElement;
@@ -28,8 +28,10 @@ function getRequiredElement<T extends HTMLElement>(id: string, constructor: new 
 }
 
 export function createDestroyerUi(): DestroyerUi {
-    const launcher = document.createElement('div');
+    const launcher = document.createElement('button');
     launcher.id = 'dd-launcher';
+    launcher.type = 'button';
+    launcher.setAttribute('aria-label', 'Open Delulu Destroyer');
     launcher.innerHTML = `${WTR_SVG}<span>DESTROYER</span>`;
     document.body.appendChild(launcher);
 

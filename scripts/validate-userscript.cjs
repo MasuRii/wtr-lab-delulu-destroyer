@@ -13,6 +13,9 @@ const required = [
     '@license',
     '@compatible   scriptcat',
     '@compatible   violentmonkey',
+    '@compatible   stay',
+    '@run-at       document-end',
+    '@noframes',
     '@grant',
 ];
 

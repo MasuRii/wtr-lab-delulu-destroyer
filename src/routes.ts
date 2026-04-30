@@ -5,7 +5,7 @@ interface NextData {
 }
 
 export function isExcludedPage(): boolean {
-    const path = window.location.pathname;
+    const path = location.pathname;
 
     if (/\/novel\/.*\/chapter-/i.test(path)) {
         return true;

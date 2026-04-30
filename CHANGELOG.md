@@ -6,6 +6,9 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Corrected README wording from owl to rabbit.
+- Added Greasy Fork demo GIF and screenshot proof to the README.
+- Improved Stay for Safari compatibility by avoiding Stay's page-injection trigger and applying saved filters before tag autocompletion finishes loading.
 - Refactored the userscript source into modular TypeScript.
 - Added Webpack bundling that outputs `WTR Lab Delulu Destroyer.user.js`.
 - Updated userscript metadata namespace to `https://docs.scriptcat.org/en/`.

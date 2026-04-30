@@ -12,7 +12,8 @@ export const DESTROYER_STYLES = `
             background: var(--dd-bg); border: 2px solid var(--dd-crimson);
             border-radius: 50px; padding: 8px 16px; display: flex; align-items: center; gap: 8px;
             cursor: pointer; box-shadow: 0 4px 15px rgba(255, 0, 85, 0.3);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s; appearance: none; -webkit-appearance: none;
+            touch-action: manipulation;
         }
         #dd-launcher:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 0, 85, 0.5); }
         #dd-launcher span { color: var(--dd-text); font-family: monospace; font-weight: bold; font-size: 13px; }

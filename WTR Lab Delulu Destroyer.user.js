@@ -12,7 +12,10 @@
 // @license      MIT
 // @compatible   scriptcat
 // @compatible   violentmonkey
+// @compatible   stay
 // @compatible   tampermonkey
+// @run-at       document-end
+// @noframes
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -75,7 +78,7 @@ const WTR_GENRES = [
 ;// ./src/routes.ts
 
 function isExcludedPage() {
-    const path = window.location.pathname;
+    const path = location.pathname;
     if (/\/novel\/.*\/chapter-/i.test(path)) {
         return true;
     }
@@ -159,6 +162,7 @@ class DeluluDestroyerApp {
         this.renderList();
         this.bindEvents();
         this.bindRouteAndMutationHandlers();
+        this.executeDestroyer();
         await this.loadApiTags();
         this.executeDestroyer();
     }
@@ -242,18 +246,18 @@ class DeluluDestroyerApp {
         const originalReplaceState = history.replaceState.bind(history);
         history.pushState = ((data, unused, url) => {
             originalPushState(data, unused, url);
-            window.setTimeout(() => this.executeDestroyer(), 100);
+            setTimeout(() => this.executeDestroyer(), 100);
         });
         history.replaceState = ((data, unused, url) => {
             originalReplaceState(data, unused, url);
-            window.setTimeout(() => this.executeDestroyer(), 100);
+            setTimeout(() => this.executeDestroyer(), 100);
         });
-        window.addEventListener('popstate', () => window.setTimeout(() => this.executeDestroyer(), 100));
+        addEventListener('popstate', () => setTimeout(() => this.executeDestroyer(), 100));
         const observer = new MutationObserver(() => {
             if (this.destroyTimeoutId !== undefined) {
-                window.clearTimeout(this.destroyTimeoutId);
+                clearTimeout(this.destroyTimeoutId);
             }
-            this.destroyTimeoutId = window.setTimeout(() => this.executeDestroyer(), 250);
+            this.destroyTimeoutId = setTimeout(() => this.executeDestroyer(), 250);
         });
         observer.observe(document.body, { childList: true, subtree: true });
     }
@@ -368,12 +372,17 @@ class DeluluDestroyerApp {
         this.ui.inputField.value = '';
         this.ui.autocompleteBox.style.display = 'none';
     }
+    openPanel() {
+        this.ui.panel.style.display = 'flex';
+        this.ui.launcher.style.display = 'none';
+        this.ui.inputField.focus();
+    }
     bindEvents() {
-        this.ui.launcher.addEventListener('click', () => {
-            this.ui.panel.style.display = 'flex';
-            this.ui.launcher.style.display = 'none';
-            this.ui.inputField.focus();
-        });
+        this.ui.launcher.addEventListener('click', () => this.openPanel());
+        this.ui.launcher.addEventListener('touchend', (event) => {
+            event.preventDefault();
+            this.openPanel();
+        }, { passive: false });
         this.ui.closeButton.addEventListener('click', () => {
             this.ui.panel.style.display = 'none';
             this.ui.launcher.style.display = 'flex';
@@ -449,7 +458,8 @@ const DESTROYER_STYLES = `
             background: var(--dd-bg); border: 2px solid var(--dd-crimson);
             border-radius: 50px; padding: 8px 16px; display: flex; align-items: center; gap: 8px;
             cursor: pointer; box-shadow: 0 4px 15px rgba(255, 0, 85, 0.3);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s; appearance: none; -webkit-appearance: none;
+            touch-action: manipulation;
         }
         #dd-launcher:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 0, 85, 0.5); }
         #dd-launcher span { color: var(--dd-text); font-family: monospace; font-weight: bold; font-size: 13px; }
@@ -566,8 +576,10 @@ function getRequiredElement(id, constructor) {
     return element;
 }
 function createDestroyerUi() {
-    const launcher = document.createElement('div');
+    const launcher = document.createElement('button');
     launcher.id = 'dd-launcher';
+    launcher.type = 'button';
+    launcher.setAttribute('aria-label', 'Open Delulu Destroyer');
     launcher.innerHTML = `${WTR_SVG}<span>DESTROYER</span>`;
     document.body.appendChild(launcher);
     const modalOverlay = document.createElement('div');
@@ -648,7 +660,7 @@ if (document.body) {
     bootstrap();
 }
 else {
-    window.addEventListener('DOMContentLoaded', bootstrap, { once: true });
+    addEventListener('DOMContentLoaded', bootstrap, { once: true });
 }
 
 /******/ })()

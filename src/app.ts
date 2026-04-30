@@ -14,7 +14,7 @@ export class DeluluDestroyerApp {
     private matchMode: MatchMode;
     private allApiTags: ApiTag[] = [];
     private uiHiddenByRoute = false;
-    private destroyTimeoutId: number | undefined;
+    private destroyTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
     public constructor(private readonly ui: DestroyerUi) {
         this.savedItems = this.loadSavedItems();
@@ -26,6 +26,7 @@ export class DeluluDestroyerApp {
         this.renderList();
         this.bindEvents();
         this.bindRouteAndMutationHandlers();
+        this.executeDestroyer();
         await this.loadApiTags();
         this.executeDestroyer();
     }
@@ -132,22 +133,22 @@ export class DeluluDestroyerApp {
 
         history.pushState = ((data: unknown, unused: string, url?: string | URL | null): void => {
             originalPushState(data, unused, url);
-            window.setTimeout(() => this.executeDestroyer(), 100);
+            setTimeout(() => this.executeDestroyer(), 100);
         }) as History['pushState'];
 
         history.replaceState = ((data: unknown, unused: string, url?: string | URL | null): void => {
             originalReplaceState(data, unused, url);
-            window.setTimeout(() => this.executeDestroyer(), 100);
+            setTimeout(() => this.executeDestroyer(), 100);
         }) as History['replaceState'];
 
-        window.addEventListener('popstate', () => window.setTimeout(() => this.executeDestroyer(), 100));
+        addEventListener('popstate', () => setTimeout(() => this.executeDestroyer(), 100));
 
         const observer = new MutationObserver(() => {
             if (this.destroyTimeoutId !== undefined) {
-                window.clearTimeout(this.destroyTimeoutId);
+                clearTimeout(this.destroyTimeoutId);
             }
 
-            this.destroyTimeoutId = window.setTimeout(() => this.executeDestroyer(), 250);
+            this.destroyTimeoutId = setTimeout(() => this.executeDestroyer(), 250);
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
@@ -295,12 +296,18 @@ export class DeluluDestroyerApp {
         this.ui.autocompleteBox.style.display = 'none';
     }
 
+    private openPanel(): void {
+        this.ui.panel.style.display = 'flex';
+        this.ui.launcher.style.display = 'none';
+        this.ui.inputField.focus();
+    }
+
     private bindEvents(): void {
-        this.ui.launcher.addEventListener('click', () => {
-            this.ui.panel.style.display = 'flex';
-            this.ui.launcher.style.display = 'none';
-            this.ui.inputField.focus();
-        });
+        this.ui.launcher.addEventListener('click', () => this.openPanel());
+        this.ui.launcher.addEventListener('touchend', (event) => {
+            event.preventDefault();
+            this.openPanel();
+        }, { passive: false });
 
         this.ui.closeButton.addEventListener('click', () => {
             this.ui.panel.style.display = 'none';

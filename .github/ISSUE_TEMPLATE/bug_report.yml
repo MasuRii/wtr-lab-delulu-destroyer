@@ -20,7 +20,7 @@ body:
     attributes:
       label: Userscript manager
       description: Manager name and version
-      placeholder: ScriptCat 0.17.x, Violentmonkey 2.x
+      placeholder: ScriptCat 0.17.x, Violentmonkey 2.x, Stay for Safari 2.x
     validations:
       required: true
   - type: input

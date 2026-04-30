@@ -14,5 +14,5 @@ function bootstrap(): void {
 if (document.body) {
     bootstrap();
 } else {
-    window.addEventListener('DOMContentLoaded', bootstrap, { once: true });
+    addEventListener('DOMContentLoaded', bootstrap, { once: true });
 }
