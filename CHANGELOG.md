@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## [4.9] - 2026-04-30
+
+### Changed
+
+- Improved blocking accuracy by caching WTR Lab JSON metadata and matching API tag IDs, genre IDs, and normalized search text when available.
+- Improved purge and block removal behavior so cards hidden by Delulu Destroyer can be restored without reloading the page.
+- Rebuilt the distributable userscript for release version 4.9.
+
 ## [4.8] - 2026-04-30
 
 ### Changed

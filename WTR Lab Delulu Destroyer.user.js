@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WTR Lab Delulu Destroyer
 // @namespace    https://docs.scriptcat.org/en/
-// @version      4.8
+// @version      4.9
 // @description  A lightweight, floating, ultra-fast novel purger for WTR Lab.
 // @author       MasuRii
 // @match        https://wtr-lab.com/*
@@ -24,7 +24,7 @@
 /******/ 	"use strict";
 
 ;// ./src/constants.ts
-const SCRIPT_VERSION = '4.8';
+const SCRIPT_VERSION = '4.9';
 const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',
     matchMode: 'wtr_match_mode',
@@ -32,6 +32,9 @@ const STORAGE_KEYS = {
 const DEFAULT_MATCH_MODE = 'broad';
 const NEXT_BUILD_ID_FALLBACK = 'B_iTIc03bagM1u-Uo_553';
 const TARGET_SELECTORS = '.list-item, .rank-item, .serie-item, .image-wrap.zoom, .rec-item, .recent-item';
+const HIDDEN_ATTRIBUTE = 'data-dd-hidden';
+const PREVIOUS_DISPLAY_ATTRIBUTE = 'data-dd-previous-display';
+const PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE = 'data-dd-previous-display-priority';
 const WTR_GENRES = [
     'action',
     'adult',
@@ -74,6 +77,99 @@ const WTR_GENRES = [
     'yaoi',
     'yuri',
 ];
+
+;// ./src/metadata.ts
+
+function normalizeText(value) {
+    return typeof value === 'string' ? value.toLowerCase() : '';
+}
+function getGenreId(label) {
+    const index = WTR_GENRES.findIndex((genre) => genre === label.toLowerCase());
+    return index >= 0 ? index + 1 : null;
+}
+function collectSeriesMetadata(payload) {
+    const result = [];
+    const visited = new Set();
+    collectFromValue(payload, result, visited);
+    return result;
+}
+function collectFromValue(value, result, visited) {
+    if (!value || typeof value !== 'object') {
+        return;
+    }
+    if (visited.has(value)) {
+        return;
+    }
+    visited.add(value);
+    if (Array.isArray(value)) {
+        value.forEach((item) => collectSeriesCandidate(item, result, visited));
+        return;
+    }
+    Object.values(value).forEach((child) => collectFromValue(child, result, visited));
+}
+function collectSeriesCandidate(value, result, visited) {
+    const direct = parseSeriesMetadata(value);
+    if (direct) {
+        result.push(direct);
+        return;
+    }
+    if (!value || typeof value !== 'object') {
+        return;
+    }
+    const record = value;
+    const nested = parseSeriesMetadata(record.serie);
+    if (nested) {
+        result.push(nested);
+        return;
+    }
+    collectFromValue(value, result, visited);
+}
+function parseSeriesMetadata(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return null;
+    }
+    const record = value;
+    const data = isRecord(record.data) ? record.data : undefined;
+    const rawId = readNumber(record.raw_id) ?? readNumber(record.rawId) ?? readNumber(record.serie_id);
+    const slug = readString(record.slug);
+    const title = readString(data?.title);
+    const description = readString(data?.description);
+    const author = readString(record.author) ?? readString(data?.author);
+    const searchText = readString(record.search_text);
+    const genreIds = readIds(record.genres);
+    const tagIds = readIds(record.tags);
+    if (!rawId && !slug) {
+        return null;
+    }
+    if (!title && !searchText && genreIds.length === 0 && tagIds.length === 0) {
+        return null;
+    }
+    return {
+        rawId,
+        slug,
+        title,
+        description,
+        author,
+        searchText,
+        genreIds,
+        tagIds,
+    };
+}
+function isRecord(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+function readString(value) {
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+function readNumber(value) {
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+function readIds(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value.filter((item) => typeof item === 'string' || typeof item === 'number');
+}
 
 ;// ./src/routes.ts
 
@@ -149,19 +245,27 @@ function setValue(key, value) {
 
 
 
+
 class DeluluDestroyerApp {
     constructor(ui) {
         this.ui = ui;
         this.allApiTags = [];
+        this.apiTagsById = new Map();
+        this.apiTagsByLabel = new Map();
+        this.seriesByRawId = new Map();
+        this.seriesBySlug = new Map();
         this.uiHiddenByRoute = false;
         this.savedItems = this.loadSavedItems();
         this.matchMode = this.loadMatchMode();
         this.ui.selectMatch.value = this.matchMode;
     }
     async init() {
+        this.bindFetchInterceptor();
+        this.cacheNextDataScriptMetadata();
         this.renderList();
         this.bindEvents();
         this.bindRouteAndMutationHandlers();
+        void this.loadCurrentRouteMetadata();
         this.executeDestroyer();
         await this.loadApiTags();
         this.executeDestroyer();
@@ -206,25 +310,108 @@ class DeluluDestroyerApp {
             this.uiHiddenByRoute = false;
         }
         if (this.savedItems.length === 0) {
+            this.restoreHiddenContainers();
             return;
         }
-        const blockWords = this.savedItems.map((item) => item.label.toLowerCase());
-        const elements = document.querySelectorAll(TARGET_SELECTORS);
-        elements.forEach((element) => {
-            const container = this.getDestroyContainer(element);
-            if (container.style.display === 'none') {
+        const filters = this.createFilterContext();
+        const containers = this.getCandidateContainers();
+        containers.forEach((container) => {
+            if (this.shouldDestroyContainer(container, filters)) {
+                this.hideContainer(container);
                 return;
             }
-            const textToCheck = this.getTitleText(container);
-            const metaTags = Array.from(container.querySelectorAll('.genre, .tag'))
-                .map((tag) => tag.textContent?.toLowerCase() ?? '');
-            const shouldDestroy = this.matchMode === 'broad'
-                ? blockWords.some((word) => textToCheck.includes(word) || metaTags.includes(word))
-                : blockWords.some((word) => metaTags.includes(word));
-            if (shouldDestroy) {
-                container.style.setProperty('display', 'none', 'important');
+            this.restoreContainer(container);
+        });
+    }
+    createFilterContext() {
+        const words = this.savedItems.map((item) => item.label.toLowerCase()).filter(Boolean);
+        const genreIds = new Set();
+        const tagIds = new Set();
+        this.savedItems.forEach((item) => {
+            if (item.type === 'genre') {
+                const genreId = getGenreId(item.label);
+                if (genreId !== null) {
+                    genreIds.add(String(genreId));
+                }
+            }
+            if (item.type === 'tag') {
+                tagIds.add(String(item.id));
             }
         });
+        return { words, genreIds, tagIds };
+    }
+    getCandidateContainers() {
+        const containers = new Set();
+        const elements = document.querySelectorAll(TARGET_SELECTORS);
+        elements.forEach((element) => containers.add(this.getDestroyContainer(element)));
+        document.querySelectorAll(`[${HIDDEN_ATTRIBUTE}="true"]`).forEach((element) => containers.add(element));
+        return Array.from(containers);
+    }
+    shouldDestroyContainer(container, filters) {
+        const metaTags = this.getMetaTags(container);
+        const metadata = this.getSeriesMetadataForContainer(container);
+        if (this.hasStrictMatch(metaTags, metadata, filters)) {
+            return true;
+        }
+        if (this.matchMode === 'strict') {
+            return false;
+        }
+        const textToCheck = this.getBroadText(container, metadata);
+        return filters.words.some((word) => textToCheck.includes(word) || metaTags.includes(word));
+    }
+    hasStrictMatch(metaTags, metadata, filters) {
+        if (filters.words.some((word) => metaTags.includes(word))) {
+            return true;
+        }
+        if (!metadata) {
+            return false;
+        }
+        return (metadata.genreIds.some((id) => filters.genreIds.has(String(id))) ||
+            metadata.tagIds.some((id) => filters.tagIds.has(String(id))));
+    }
+    getBroadText(container, metadata) {
+        return [
+            this.getTitleText(container),
+            metadata?.title,
+            metadata?.description,
+            metadata?.author,
+            metadata?.searchText,
+        ]
+            .filter((value) => typeof value === 'string' && value.length > 0)
+            .join(' ')
+            .toLowerCase();
+    }
+    getMetaTags(container) {
+        return Array.from(container.querySelectorAll('.genre, .tag'))
+            .map((tag) => tag.textContent?.toLowerCase().trim() ?? '')
+            .filter(Boolean);
+    }
+    hideContainer(container) {
+        if (container.getAttribute(HIDDEN_ATTRIBUTE) !== 'true') {
+            container.setAttribute(PREVIOUS_DISPLAY_ATTRIBUTE, container.style.getPropertyValue('display'));
+            container.setAttribute(PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE, container.style.getPropertyPriority('display'));
+            container.setAttribute(HIDDEN_ATTRIBUTE, 'true');
+        }
+        container.style.setProperty('display', 'none', 'important');
+    }
+    restoreHiddenContainers() {
+        document.querySelectorAll(`[${HIDDEN_ATTRIBUTE}="true"]`).forEach((container) => this.restoreContainer(container));
+    }
+    restoreContainer(container) {
+        if (container.getAttribute(HIDDEN_ATTRIBUTE) !== 'true') {
+            return;
+        }
+        const previousDisplay = container.getAttribute(PREVIOUS_DISPLAY_ATTRIBUTE) ?? '';
+        const previousPriority = container.getAttribute(PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE) ?? '';
+        if (previousDisplay) {
+            container.style.setProperty('display', previousDisplay, previousPriority);
+        }
+        else {
+            container.style.removeProperty('display');
+        }
+        container.removeAttribute(HIDDEN_ATTRIBUTE);
+        container.removeAttribute(PREVIOUS_DISPLAY_ATTRIBUTE);
+        container.removeAttribute(PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE);
     }
     getDestroyContainer(element) {
         const cardWrapper = element.closest('.card');
@@ -241,18 +428,61 @@ class DeluluDestroyerApp {
         }
         return (container.getAttribute('title') ?? '').toLowerCase();
     }
+    getSeriesMetadataForContainer(container) {
+        const key = this.getNovelKey(container);
+        if (!key) {
+            return undefined;
+        }
+        if (key.rawId !== undefined) {
+            const metadata = this.seriesByRawId.get(key.rawId);
+            if (metadata) {
+                return metadata;
+            }
+        }
+        return key.slug ? this.seriesBySlug.get(key.slug) : undefined;
+    }
+    getNovelKey(container) {
+        const anchors = this.getNovelAnchors(container);
+        for (const anchor of anchors) {
+            const key = this.parseNovelHref(anchor.getAttribute('href'));
+            if (key) {
+                return key;
+            }
+        }
+        return null;
+    }
+    getNovelAnchors(container) {
+        const anchors = Array.from(container.querySelectorAll('a[href]'));
+        if (container instanceof HTMLAnchorElement && container.hasAttribute('href')) {
+            anchors.unshift(container);
+        }
+        return anchors;
+    }
+    parseNovelHref(href) {
+        if (!href) {
+            return null;
+        }
+        const url = new URL(href, location.href);
+        const match = url.pathname.match(/\/novel\/(\d+)\/([^/?#]+)/i);
+        if (!match) {
+            return null;
+        }
+        const rawId = Number(match[1]);
+        const slug = match[2] ? decodeURIComponent(match[2]) : undefined;
+        return Number.isFinite(rawId) ? { rawId, slug } : null;
+    }
     bindRouteAndMutationHandlers() {
         const originalPushState = history.pushState.bind(history);
         const originalReplaceState = history.replaceState.bind(history);
         history.pushState = ((data, unused, url) => {
             originalPushState(data, unused, url);
-            setTimeout(() => this.executeDestroyer(), 100);
+            this.handleRouteChange();
         });
         history.replaceState = ((data, unused, url) => {
             originalReplaceState(data, unused, url);
-            setTimeout(() => this.executeDestroyer(), 100);
+            this.handleRouteChange();
         });
-        addEventListener('popstate', () => setTimeout(() => this.executeDestroyer(), 100));
+        addEventListener('popstate', () => this.handleRouteChange());
         const observer = new MutationObserver(() => {
             if (this.destroyTimeoutId !== undefined) {
                 clearTimeout(this.destroyTimeoutId);
@@ -260,6 +490,53 @@ class DeluluDestroyerApp {
             this.destroyTimeoutId = setTimeout(() => this.executeDestroyer(), 250);
         });
         observer.observe(document.body, { childList: true, subtree: true });
+    }
+    handleRouteChange() {
+        setTimeout(() => {
+            void this.loadCurrentRouteMetadata();
+            this.executeDestroyer();
+        }, 100);
+    }
+    bindFetchInterceptor() {
+        const originalFetch = globalThis.fetch.bind(globalThis);
+        const interceptedFetch = async (input, init) => {
+            const response = await originalFetch(input, init);
+            this.inspectFetchResponse(input, response);
+            return response;
+        };
+        globalThis.fetch = interceptedFetch;
+    }
+    inspectFetchResponse(input, response) {
+        const url = this.getRequestUrl(input);
+        if (!url || !this.shouldInspectResponse(url, response)) {
+            return;
+        }
+        response.clone().json()
+            .then((payload) => {
+            this.cachePayloadMetadata(payload);
+            this.executeDestroyer();
+        })
+            .catch(() => {
+            console.log('Delulu Destroyer: Skipped non-JSON metadata response.');
+        });
+    }
+    getRequestUrl(input) {
+        if (typeof input === 'string') {
+            return new URL(input, location.href);
+        }
+        if (input instanceof URL) {
+            return input;
+        }
+        if (input instanceof Request) {
+            return new URL(input.url, location.href);
+        }
+        return null;
+    }
+    shouldInspectResponse(url, response) {
+        if (!response.ok || url.origin !== location.origin) {
+            return false;
+        }
+        return url.pathname.startsWith('/_next/data/') || url.pathname === '/api/home/recent';
     }
     renderList() {
         this.ui.blocklistEl.innerHTML = '';
@@ -351,26 +628,22 @@ class DeluluDestroyerApp {
             this.ui.autocompleteBox.style.display = 'none';
             return;
         }
-        let type = 'custom';
-        let label = value;
-        let id = `c_${Date.now()}`;
-        if (WTR_GENRES.includes(value.toLowerCase())) {
-            type = 'genre';
-            id = `g_${value.toLowerCase()}`;
-        }
-        else {
-            const foundTag = this.allApiTags.find((tag) => tag.label.toLowerCase() === value.toLowerCase() || String(tag.value) === value);
-            if (foundTag) {
-                type = 'tag';
-                label = foundTag.label;
-                id = foundTag.value;
-            }
-        }
-        this.savedItems.push({ id, label, type });
+        this.savedItems.push(this.createBlockItem(value));
         this.updateStorage();
         this.renderList();
         this.ui.inputField.value = '';
         this.ui.autocompleteBox.style.display = 'none';
+    }
+    createBlockItem(value) {
+        const lowerValue = value.toLowerCase();
+        if (WTR_GENRES.includes(lowerValue)) {
+            return { id: `g_${lowerValue}`, label: lowerValue, type: 'genre' };
+        }
+        const foundTag = this.apiTagsByLabel.get(lowerValue) ?? this.apiTagsById.get(value);
+        if (foundTag) {
+            return { id: foundTag.value, label: foundTag.label, type: 'tag' };
+        }
+        return { id: `c_${Date.now()}`, label: value, type: 'custom' };
     }
     openPanel() {
         this.ui.panel.style.display = 'flex';
@@ -391,6 +664,7 @@ class DeluluDestroyerApp {
         this.ui.selectMatch.addEventListener('change', () => {
             this.matchMode = this.ui.selectMatch.value === 'strict' ? 'strict' : 'broad';
             this.updateStorage();
+            this.executeDestroyer();
         });
         this.ui.inputField.addEventListener('input', () => this.renderAutocomplete());
         this.ui.inputField.addEventListener('focus', () => this.renderAutocomplete());
@@ -425,21 +699,144 @@ class DeluluDestroyerApp {
             this.ui.launcher.style.display = 'flex';
         });
     }
+    cacheNextDataScriptMetadata() {
+        const nextDataScript = document.getElementById('__NEXT_DATA__');
+        if (!nextDataScript?.textContent) {
+            return;
+        }
+        try {
+            this.cachePayloadMetadata(JSON.parse(nextDataScript.textContent));
+        }
+        catch {
+            console.log('Delulu Destroyer: Could not read embedded page metadata.');
+        }
+    }
     async loadApiTags() {
         try {
-            const response = await fetch(`https://wtr-lab.com/_next/data/${getNextBuildId()}/en/novel-finder.json?locale=en`);
+            const response = await fetch(`https://wtr-lab.com/_next/data/${getNextBuildId()}/${this.getLocale()}/novel-finder.json?locale=${this.getLocale()}`);
             if (!response.ok) {
                 return;
             }
             const payload = await response.json();
-            const ungrouped = findTags(payload);
-            if (ungrouped) {
-                this.allApiTags = ungrouped;
-            }
+            this.cachePayloadMetadata(payload);
         }
         catch {
             console.log('Delulu Destroyer: Running without API tag autocompletion.');
         }
+    }
+    async loadCurrentRouteMetadata() {
+        if (isExcludedPage()) {
+            return;
+        }
+        const url = this.getCurrentRouteMetadataUrl();
+        if (!url || url.href === this.lastRouteMetadataUrl) {
+            return;
+        }
+        this.lastRouteMetadataUrl = url.href;
+        try {
+            const response = await fetch(url.href);
+            if (!response.ok) {
+                return;
+            }
+            const payload = await response.json();
+            this.cachePayloadMetadata(payload);
+            this.executeDestroyer();
+        }
+        catch {
+            console.log('Delulu Destroyer: Current page metadata was unavailable.');
+        }
+    }
+    getCurrentRouteMetadataUrl() {
+        if (location.pathname.startsWith('/_next/') || location.pathname.includes('/api/')) {
+            return null;
+        }
+        const locale = this.getLocale();
+        const cleanPath = location.pathname.replace(/\/$/, '');
+        const routePath = cleanPath.length > 0 ? cleanPath : `/${locale}`;
+        const url = new URL(`/_next/data/${getNextBuildId()}${routePath}.json`, location.origin);
+        const searchParams = new URLSearchParams(location.search);
+        if (!searchParams.has('locale')) {
+            searchParams.set('locale', locale);
+        }
+        url.search = searchParams.toString();
+        return url;
+    }
+    getLocale() {
+        const segment = location.pathname.split('/').filter(Boolean)[0];
+        return segment && /^[a-z]{2}$/i.test(segment) ? segment : 'en';
+    }
+    cachePayloadMetadata(payload) {
+        this.cacheSeriesMetadata(payload);
+        const ungrouped = findTags(payload);
+        if (ungrouped) {
+            this.setApiTags(ungrouped);
+        }
+    }
+    cacheSeriesMetadata(payload) {
+        collectSeriesMetadata(payload).forEach((metadata) => this.cacheSeries(metadata));
+    }
+    cacheSeries(metadata) {
+        const existing = metadata.rawId !== undefined
+            ? this.seriesByRawId.get(metadata.rawId)
+            : metadata.slug ? this.seriesBySlug.get(metadata.slug) : undefined;
+        const merged = {
+            ...existing,
+            ...metadata,
+            genreIds: metadata.genreIds.length > 0 ? metadata.genreIds : existing?.genreIds ?? [],
+            tagIds: metadata.tagIds.length > 0 ? metadata.tagIds : existing?.tagIds ?? [],
+        };
+        if (merged.rawId !== undefined) {
+            this.seriesByRawId.set(merged.rawId, merged);
+        }
+        if (merged.slug) {
+            this.seriesBySlug.set(merged.slug, merged);
+        }
+    }
+    setApiTags(tags) {
+        this.allApiTags = tags.filter(this.isApiTag);
+        this.apiTagsById = new Map(this.allApiTags.map((tag) => [String(tag.value), tag]));
+        this.apiTagsByLabel = new Map(this.allApiTags.map((tag) => [tag.label.toLowerCase(), tag]));
+        if (this.hydrateSavedItemTypes()) {
+            this.updateStorage();
+            this.renderList();
+        }
+    }
+    isApiTag(tag) {
+        return typeof tag.label === 'string' && (typeof tag.value === 'string' || typeof tag.value === 'number');
+    }
+    hydrateSavedItemTypes() {
+        let changed = false;
+        const hydrated = this.savedItems.map((item) => {
+            const nextItem = this.hydrateSavedItem(item);
+            changed || (changed = nextItem !== item);
+            return nextItem;
+        });
+        this.savedItems = this.dedupeItems(hydrated);
+        return changed || this.savedItems.length !== hydrated.length;
+    }
+    hydrateSavedItem(item) {
+        const lowerLabel = item.label.toLowerCase();
+        if (WTR_GENRES.includes(lowerLabel)) {
+            const nextItem = { id: `g_${lowerLabel}`, label: lowerLabel, type: 'genre' };
+            return item.id === nextItem.id && item.label === nextItem.label && item.type === nextItem.type ? item : nextItem;
+        }
+        const tag = this.apiTagsByLabel.get(lowerLabel) ?? this.apiTagsById.get(String(item.id));
+        if (tag) {
+            const nextItem = { id: tag.value, label: tag.label, type: 'tag' };
+            return item.id === nextItem.id && item.label === nextItem.label && item.type === nextItem.type ? item : nextItem;
+        }
+        return item;
+    }
+    dedupeItems(items) {
+        const seen = new Set();
+        return items.filter((item) => {
+            const key = `${item.type}:${String(item.id)}:${item.label.toLowerCase()}`;
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
     }
 }
 
