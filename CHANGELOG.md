@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [4.7] - 2026-04-30
 
+### Changed
+
+- Refactored the userscript source into modular TypeScript.
+- Added Webpack bundling that outputs `WTR Lab Delulu Destroyer.user.js`.
+- Updated userscript metadata namespace to `https://docs.scriptcat.org/en/`.
+- Prioritized ScriptCat and Violentmonkey compatibility in metadata and documentation.
+- Updated README content to align with the Greasy Fork listing.
+
 ### Added
 
 - Initial public repository standard.

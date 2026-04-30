@@ -1,0 +1,20 @@
+{
+  "name": "wtr-lab-delulu-destroyer",
+  "version": "4.7.0",
+  "description": "A lightweight userscript for filtering WTR Lab novels by genre, tag, and keyword.",
+  "private": false,
+  "license": "MIT",
+  "author": "MasuRii",
+  "type": "commonjs",
+  "scripts": {
+    "build": "webpack --config webpack.config.cjs",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run typecheck && npm run build && node --check \"WTR Lab Delulu Destroyer.user.js\" && node scripts/validate-userscript.cjs"
+  },
+  "devDependencies": {
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.8",
+    "webpack-cli": "^6.0.1"
+  }
+}

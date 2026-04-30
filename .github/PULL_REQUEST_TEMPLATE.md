@@ -4,8 +4,8 @@
 
 ## Validation
 
-- [ ] `node --check "WTR Lab Delulu Destroyer.user.js"`
-- [ ] Installed locally in a userscript manager
+- [ ] `npm run validate`
+- [ ] Installed generated userscript locally in ScriptCat or Violentmonkey
 - [ ] Verified on affected WTR Lab page(s)
 
 ## Notes

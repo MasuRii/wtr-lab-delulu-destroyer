@@ -20,7 +20,7 @@ body:
     attributes:
       label: Userscript manager
       description: Manager name and version
-      placeholder: Tampermonkey 5.x
+      placeholder: ScriptCat 0.17.x, Violentmonkey 2.x
     validations:
       required: true
   - type: input

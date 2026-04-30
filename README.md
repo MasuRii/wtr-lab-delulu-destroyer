@@ -1,54 +1,71 @@
-# WTR Lab Delulu Destroyer
+# 🦉 Delulu Destroyer for WTR Lab
 
-A lightweight Tampermonkey userscript for WTR Lab that helps hide novels and list items matching genres, tags, or custom keywords you do not want to see.
+Tired of scrolling through WTR Lab and seeing genres, tags, or novel tropes you absolutely cannot stand? Delulu Destroyer is a lightweight, ultra-fast filter that lets you block and hide novels you have no interest in reading.
 
-[Install the userscript](https://github.com/MasuRii/wtr-lab-delulu-destroyer/raw/main/WTR%20Lab%20Delulu%20Destroyer.user.js)
+Out of sight, out of mind.
+
+[Install from Greasy Fork](https://greasyfork.org/en/scripts/575938-wtr-lab-delulu-destroyer) · [Install from GitHub](https://github.com/MasuRii/wtr-lab-delulu-destroyer/raw/main/WTR%20Lab%20Delulu%20Destroyer.user.js)
 
 ## Features
 
-- Floating WTR Lab control panel with quick show/hide access
-- Block by built-in WTR genres, discovered tags, or custom keywords
-- Broad and strict matching modes
-- Persistent local blocklist through Tampermonkey storage
-- Skips chapter, library, news, and most profile pages to avoid disrupting reading
-- No build step and no external dependencies
+- **Sleek floating panel**: A compact crimson owl launcher sits in the bottom-right corner of WTR Lab.
+- **Smart input**: Type a genre, API tag, or custom keyword. The script labels each target with color-coded badges.
+- **Seamless browsing**: WTR Lab navigation and infinite-scroll updates are watched so blocked novels stay hidden as pages change.
+- **Auto-save**: Your blocklist and search mode are saved locally by your userscript manager.
+- **Safe purge**: Clearing the entire blocklist requires confirmation first.
 
 ## Installation
 
-1. Install a userscript manager such as [Tampermonkey](https://www.tampermonkey.net/).
-2. Open the install link above.
-3. Confirm the userscript installation in your userscript manager.
-4. Visit `https://wtr-lab.com/` and use the **Destroyer** launcher in the bottom-right corner.
+1. Install a userscript manager. Recommended options:
+   - [ScriptCat](https://docs.scriptcat.org/en/)
+   - [Violentmonkey](https://violentmonkey.github.io/)
+2. Open the [Greasy Fork script page](https://greasyfork.org/en/scripts/575938-wtr-lab-delulu-destroyer).
+3. Install the script through your userscript manager.
+4. Visit `https://wtr-lab.com/` and click the floating **Destroyer** button.
 
 > [!NOTE]
-> This project is an independent userscript and is not affiliated with WTR Lab.
+> Tampermonkey may still work, but this project now prioritizes ScriptCat and Violentmonkey compatibility.
 
-## Usage
+## How to use
 
-1. Open WTR Lab.
-2. Click **Destroyer**.
-3. Choose a genre, tag, or custom keyword.
-4. Add it to the blocklist.
-5. Switch match mode if you need broader or stricter filtering.
+1. Open the panel from the floating **Destroyer** button.
+2. Type a genre such as `harem`, a tag such as `tragedy`, or a custom keyword such as `system`.
+3. Press Enter or click `+` to add it to your blocklist.
+4. Click **Apply & Destroy** to hide matching novels.
+5. Remove a block by clicking the `×` button on its badge.
 
-Your blocklist is stored locally by the userscript manager. Removing or resetting the script may remove saved preferences depending on your manager settings.
+## Smart search modes
+
+- **Broad**: Checks novel titles, genres, and tags. This is the default and recommended mode.
+- **Strict**: Checks only official genres and tags, ignoring titles.
 
 ## Compatibility
 
 - Target site: `https://wtr-lab.com/*`
-- Userscript managers: Tampermonkey-compatible managers
-- Browser support: Modern Chromium, Firefox, and Edge builds supported by your userscript manager
+- Recommended managers: ScriptCat and Violentmonkey
+- Output format: bundled JavaScript userscript generated from modular TypeScript
+- Browser support: modern browsers supported by the selected userscript manager
 
 ## Development
 
-This repository intentionally keeps the userscript as a single distributable file.
+The source is now modular TypeScript under `src/`. Webpack bundles it back into the distributable userscript file:
 
 ```bash
-node --check "WTR Lab Delulu Destroyer.user.js"
+npm install
+npm run build
+npm run validate
 ```
 
-Commit changes to the `.user.js` file directly. GitHub Actions validates basic userscript syntax and required metadata on every push and pull request.
+Important files:
+
+- `src/index.ts` - userscript bootstrap
+- `src/app.ts` - filtering, UI state, routing, and event behavior
+- `userscript.metadata.cjs` - userscript metadata header
+- `webpack.config.cjs` - bundles TypeScript into `WTR Lab Delulu Destroyer.user.js`
 
 ## Privacy
 
-The script stores filter preferences locally with `GM_setValue` / `GM_getValue`. It does not collect analytics or send personal data to this repository owner.
+The script stores filter preferences locally through userscript storage, with a localStorage fallback for compatible runtimes. It does not collect analytics or send personal data to this repository owner.
+
+> [!IMPORTANT]
+> This project is an independent userscript and is not affiliated with WTR Lab.

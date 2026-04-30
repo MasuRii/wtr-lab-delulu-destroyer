@@ -4,8 +4,9 @@ Thanks for helping improve WTR Lab Delulu Destroyer.
 
 ## Ground rules
 
-- Keep the userscript lightweight and dependency-free.
-- Preserve the single-file `.user.js` distribution model.
+- Keep the runtime userscript lightweight.
+- Preserve the single-file `.user.js` distribution output.
+- Make source changes in modular TypeScript under `src/`.
 - Do not add tracking, analytics, or remote telemetry.
 - Avoid changes that interfere with WTR Lab reading pages.
 
@@ -14,10 +15,11 @@ Thanks for helping improve WTR Lab Delulu Destroyer.
 Before opening a pull request, run:
 
 ```bash
-node --check "WTR Lab Delulu Destroyer.user.js"
+npm install
+npm run validate
 ```
 
-Also install the script locally in your userscript manager and verify the panel opens on WTR Lab.
+Also install the generated script locally in ScriptCat or Violentmonkey and verify the panel opens on WTR Lab.
 
 ## Pull requests
 
