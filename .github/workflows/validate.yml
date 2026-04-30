@@ -1,0 +1,56 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  userscript:
+    name: Userscript validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: node --check "WTR Lab Delulu Destroyer.user.js"
+
+      - name: Validate userscript metadata
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const scriptPath = 'WTR Lab Delulu Destroyer.user.js';
+          const script = fs.readFileSync(scriptPath, 'utf8');
+          const required = [
+            '@name',
+            '@namespace',
+            '@version',
+            '@description',
+            '@author',
+            '@match',
+            '@license',
+            '@grant'
+          ];
+
+          if (!script.startsWith('// ==UserScript==')) {
+            throw new Error('Missing userscript metadata header.');
+          }
+
+          for (const key of required) {
+            if (!script.includes(key)) {
+              throw new Error(`Missing required metadata field: ${key}`);
+            }
+          }
+
+          const version = script.match(/@version\s+([^\s]+)/)?.[1];
+          if (!version || !/^\d+\.\d+(\.\d+)?$/.test(version)) {
+            throw new Error(`Invalid @version value: ${version ?? 'missing'}`);
+          }
+
+          console.log(`Validated ${scriptPath} metadata version ${version}.`);
+          NODE
