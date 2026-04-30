@@ -11,6 +11,10 @@ export const NEXT_BUILD_ID_FALLBACK = 'B_iTIc03bagM1u-Uo_553';
 
 export const TARGET_SELECTORS = '.list-item, .rank-item, .serie-item, .image-wrap.zoom, .rec-item, .recent-item';
 
+export const HIDDEN_ATTRIBUTE = 'data-dd-hidden';
+export const PREVIOUS_DISPLAY_ATTRIBUTE = 'data-dd-previous-display';
+export const PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE = 'data-dd-previous-display-priority';
+
 export const WTR_GENRES = [
     'action',
     'adult',
