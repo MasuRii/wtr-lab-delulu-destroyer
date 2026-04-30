@@ -19,7 +19,7 @@ npm install
 npm run validate
 ```
 
-Also install the generated script locally in ScriptCat or Violentmonkey and verify the panel opens on WTR Lab. For iOS compatibility changes, check Stay's supported metadata/API list in `C:/Repository/Stay/README-EN.md`.
+Also install the generated script locally in ScriptCat or Violentmonkey and verify the panel opens on WTR Lab. For iOS compatibility changes, check Stay's supported metadata/API documentation before claiming support.
 
 ## Pull requests
 
