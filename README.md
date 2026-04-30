@@ -1,5 +1,14 @@
 # 🐰 Delulu Destroyer for WTR Lab
 
+<p align="center">
+  <a href="https://github.com/MasuRii/wtr-lab-delulu-destroyer/actions/workflows/validate.yml"><img alt="Validate" src="https://github.com/MasuRii/wtr-lab-delulu-destroyer/actions/workflows/validate.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/MasuRii/wtr-lab-delulu-destroyer"></a>
+  <a href="package.json"><img alt="Version" src="https://img.shields.io/github/package-json/v/MasuRii/wtr-lab-delulu-destroyer?label=version"></a>
+  <a href="https://greasyfork.org/en/scripts/575938-wtr-lab-delulu-destroyer"><img alt="Greasy Fork" src="https://img.shields.io/badge/Greasy%20Fork-install-success"></a>
+  <a href="#installation"><img alt="Managers: ScriptCat, Violentmonkey, Stay" src="https://img.shields.io/badge/managers-ScriptCat%20%7C%20Violentmonkey%20%7C%20Stay-blue"></a>
+  <a href="https://wtr-lab.com/"><img alt="Target: wtr-lab.com" src="https://img.shields.io/badge/target-wtr--lab.com-ff0055"></a>
+</p>
+
 Tired of scrolling through WTR Lab and seeing genres, tags, or novel tropes you absolutely cannot stand? Delulu Destroyer is a lightweight, ultra-fast filter that lets you block and hide novels you have no interest in reading.
 
 Out of sight, out of mind.
