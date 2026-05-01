@@ -1,6 +1,6 @@
 {
   "name": "wtr-lab-delulu-destroyer",
-  "version": "4.9.0",
+  "version": "5.0.0",
   "description": "A lightweight userscript for filtering WTR Lab novels by genre, tag, and keyword.",
   "private": false,
   "license": "MIT",

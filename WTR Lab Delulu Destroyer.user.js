@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WTR Lab Delulu Destroyer
 // @namespace    https://docs.scriptcat.org/en/
-// @version      4.9
+// @version      5.0
 // @description  A lightweight, floating, ultra-fast novel purger for WTR Lab.
 // @author       MasuRii
 // @match        https://wtr-lab.com/*
@@ -24,12 +24,15 @@
 /******/ 	"use strict";
 
 ;// ./src/constants.ts
-const SCRIPT_VERSION = '4.9';
+const SCRIPT_VERSION = '5.0';
 const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',
     matchMode: 'wtr_match_mode',
+    profiles: 'wtr_profiles',
 };
 const DEFAULT_MATCH_MODE = 'broad';
+const SHARE_PAYLOAD_APP = 'wtr-delulu-destroyer';
+const SHARE_PAYLOAD_VERSION = 1;
 const NEXT_BUILD_ID_FALLBACK = 'B_iTIc03bagM1u-Uo_553';
 const TARGET_SELECTORS = '.list-item, .rank-item, .serie-item, .image-wrap.zoom, .rec-item, .recent-item';
 const HIDDEN_ATTRIBUTE = 'data-dd-hidden';
@@ -257,12 +260,14 @@ class DeluluDestroyerApp {
         this.uiHiddenByRoute = false;
         this.savedItems = this.loadSavedItems();
         this.matchMode = this.loadMatchMode();
+        this.profiles = this.loadProfiles();
         this.ui.selectMatch.value = this.matchMode;
     }
     async init() {
         this.bindFetchInterceptor();
         this.cacheNextDataScriptMetadata();
         this.renderList();
+        this.renderProfiles();
         this.bindEvents();
         this.bindRouteAndMutationHandlers();
         void this.loadCurrentRouteMetadata();
@@ -283,6 +288,20 @@ class DeluluDestroyerApp {
         const value = getValue(STORAGE_KEYS.matchMode, DEFAULT_MATCH_MODE);
         return value === 'strict' ? 'strict' : 'broad';
     }
+    loadProfiles() {
+        try {
+            const parsed = JSON.parse(getValue(STORAGE_KEYS.profiles, '[]'));
+            if (!Array.isArray(parsed)) {
+                return [];
+            }
+            return parsed
+                .map((profile) => this.normalizeProfile(profile))
+                .filter((profile) => profile !== null);
+        }
+        catch {
+            return [];
+        }
+    }
     isBlockItem(item) {
         if (!item || typeof item !== 'object') {
             return false;
@@ -292,9 +311,38 @@ class DeluluDestroyerApp {
             typeof candidate.label === 'string' &&
             (candidate.type === 'genre' || candidate.type === 'tag' || candidate.type === 'custom'));
     }
+    isRecord(value) {
+        return typeof value === 'object' && value !== null;
+    }
+    normalizeProfile(profile) {
+        if (!this.isRecord(profile)) {
+            return null;
+        }
+        if (typeof profile.id !== 'string' || typeof profile.name !== 'string' || !Array.isArray(profile.items)) {
+            return null;
+        }
+        const now = Date.now();
+        const createdAt = typeof profile.createdAt === 'number' ? profile.createdAt : now;
+        const updatedAt = typeof profile.updatedAt === 'number' ? profile.updatedAt : createdAt;
+        const matchMode = profile.matchMode === 'strict' ? 'strict' : 'broad';
+        return {
+            id: profile.id,
+            name: profile.name,
+            items: profile.items.filter((item) => this.isBlockItem(item)),
+            matchMode,
+            createdAt,
+            updatedAt,
+        };
+    }
     updateStorage() {
         setValue(STORAGE_KEYS.savedItems, JSON.stringify(this.savedItems));
         setValue(STORAGE_KEYS.matchMode, this.matchMode);
+    }
+    updateProfilesStorage() {
+        setValue(STORAGE_KEYS.profiles, JSON.stringify(this.profiles));
+    }
+    cloneItems(items) {
+        return items.map((item) => ({ ...item }));
     }
     executeDestroyer() {
         if (isExcludedPage()) {
@@ -556,6 +604,7 @@ class DeluluDestroyerApp {
                 this.savedItems = this.savedItems.filter((savedItem) => savedItem.id !== item.id);
                 this.updateStorage();
                 this.renderList();
+                this.clearProfileDraft('Blocklist changed. Select a profile again before overwriting it.');
                 this.executeDestroyer();
             });
             pill.append(icon, label, removeButton);
@@ -567,6 +616,75 @@ class DeluluDestroyerApp {
             empty.className = 'dd-empty';
             empty.textContent = 'No targets acquired.';
             this.ui.blocklistEl.appendChild(empty);
+        }
+    }
+    renderProfiles(selectedProfileId) {
+        const previousProfileId = selectedProfileId ?? this.ui.profileSelect.value;
+        this.ui.profileSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = this.profiles.length === 0 ? 'No saved profiles' : 'Choose a saved profile';
+        this.ui.profileSelect.appendChild(placeholder);
+        this.profiles.forEach((profile) => {
+            const option = document.createElement('option');
+            option.value = profile.id;
+            option.textContent = `${profile.name} (${profile.items.length})`;
+            this.ui.profileSelect.appendChild(option);
+        });
+        if (this.profiles.some((profile) => profile.id === previousProfileId)) {
+            this.ui.profileSelect.value = previousProfileId;
+        }
+        const selectedProfile = this.getSelectedProfile();
+        if (selectedProfile) {
+            this.ui.profileNameInput.value = selectedProfile.name;
+        }
+        else if (selectedProfileId !== undefined || previousProfileId) {
+            this.ui.profileNameInput.value = '';
+        }
+        this.syncProfileButtons();
+    }
+    syncProfileButtons() {
+        const hasSelectedProfile = this.getSelectedProfile() !== undefined;
+        this.ui.profileLoadButton.disabled = !hasSelectedProfile;
+        this.ui.profileDeleteButton.disabled = !hasSelectedProfile;
+    }
+    getSelectedProfile() {
+        const selectedId = this.ui.profileSelect.value;
+        return selectedId ? this.profiles.find((profile) => profile.id === selectedId) : undefined;
+    }
+    setStatus(message) {
+        this.ui.statusEl.textContent = message;
+    }
+    openConfirmPrompt(options) {
+        if (this.modalResolver) {
+            this.resolveConfirmPrompt(false);
+        }
+        this.ui.modalTitle.textContent = options.title;
+        this.ui.modalMessage.textContent = options.message;
+        this.ui.modalConfirmButton.textContent = options.confirmLabel;
+        this.ui.modalConfirmButton.classList.toggle('dd-btn-danger', options.danger !== false);
+        this.ui.modalOverlay.style.display = 'flex';
+        return new Promise((resolve) => {
+            this.modalResolver = resolve;
+        });
+    }
+    resolveConfirmPrompt(confirmed) {
+        this.ui.modalOverlay.style.display = 'none';
+        this.ui.modalConfirmButton.classList.add('dd-btn-danger');
+        if (!this.modalResolver) {
+            return;
+        }
+        const resolver = this.modalResolver;
+        this.modalResolver = undefined;
+        resolver(confirmed);
+    }
+    clearProfileDraft(message) {
+        const hadProfileDraft = this.ui.profileSelect.value !== '' || this.ui.profileNameInput.value !== '';
+        this.ui.profileSelect.value = '';
+        this.ui.profileNameInput.value = '';
+        this.syncProfileButtons();
+        if (message && hadProfileDraft) {
+            this.setStatus(message);
         }
     }
     getPillIcon(type) {
@@ -631,8 +749,280 @@ class DeluluDestroyerApp {
         this.savedItems.push(this.createBlockItem(value));
         this.updateStorage();
         this.renderList();
+        this.clearProfileDraft('Blocklist changed. Select a profile again before overwriting it.');
         this.ui.inputField.value = '';
         this.ui.autocompleteBox.style.display = 'none';
+    }
+    copyCurrentBlocklist() {
+        const payload = {
+            app: SHARE_PAYLOAD_APP,
+            version: SHARE_PAYLOAD_VERSION,
+            items: this.cloneItems(this.savedItems),
+            matchMode: this.matchMode,
+        };
+        const sharedText = JSON.stringify(payload);
+        void this.writeClipboard(sharedText).then((copied) => {
+            if (copied) {
+                this.setStatus(`Copied ${this.savedItems.length} target(s).`);
+                return;
+            }
+            this.ui.importText.value = sharedText;
+            this.ui.importText.focus();
+            this.ui.importText.select();
+            this.setStatus('Copy failed. Select the generated text and copy it manually.');
+        });
+    }
+    async writeClipboard(text) {
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        }
+        catch (error) {
+            console.log('Delulu Destroyer: Clipboard API copy failed.', error);
+        }
+        return this.writeClipboardFallback(text);
+    }
+    writeClipboardFallback(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+            return document.execCommand('copy');
+        }
+        catch (error) {
+            console.log('Delulu Destroyer: Fallback copy failed.', error);
+            return false;
+        }
+        finally {
+            textarea.remove();
+        }
+    }
+    importSharedBlocklist() {
+        const importedItems = this.parseSharedBlocklist(this.ui.importText.value.trim());
+        if (importedItems.length === 0) {
+            this.setStatus('Paste a valid shared blocklist first.');
+            return;
+        }
+        const previousCount = this.savedItems.length;
+        this.savedItems = this.mergeBlockItems(this.savedItems, importedItems);
+        this.updateStorage();
+        this.renderList();
+        this.executeDestroyer();
+        this.ui.importText.value = '';
+        const addedCount = this.savedItems.length - previousCount;
+        if (addedCount > 0) {
+            this.clearProfileDraft();
+        }
+        this.setStatus(addedCount > 0 ? `Imported ${addedCount} new target(s). Select a profile again before overwriting it.` : 'Imported blocklist had no new targets.');
+    }
+    parseSharedBlocklist(rawValue) {
+        if (!rawValue) {
+            return [];
+        }
+        try {
+            return this.parseSharedJson(JSON.parse(rawValue));
+        }
+        catch (error) {
+            if (rawValue.startsWith('{') || rawValue.startsWith('[')) {
+                console.log('Delulu Destroyer: Shared blocklist JSON could not be parsed.', error);
+                return [];
+            }
+            return this.parsePlainTextBlocklist(rawValue);
+        }
+    }
+    parseSharedJson(payload) {
+        if (Array.isArray(payload)) {
+            return this.normalizeImportedEntries(payload);
+        }
+        if (this.isRecord(payload) && Array.isArray(payload.items)) {
+            return this.normalizeImportedEntries(payload.items);
+        }
+        return [];
+    }
+    parsePlainTextBlocklist(rawValue) {
+        return rawValue
+            .split(/[\n,]+/)
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .map((value) => this.createBlockItem(value));
+    }
+    normalizeImportedEntries(entries) {
+        return entries
+            .map((entry) => this.normalizeImportedEntry(entry))
+            .filter((item) => item !== null);
+    }
+    normalizeImportedEntry(entry) {
+        if (typeof entry === 'string') {
+            const value = entry.trim();
+            return value ? this.createBlockItem(value) : null;
+        }
+        if (this.isBlockItem(entry)) {
+            return this.hydrateSavedItem(entry);
+        }
+        return null;
+    }
+    mergeBlockItems(currentItems, nextItems) {
+        const merged = [...currentItems, ...nextItems.map((item) => this.hydrateSavedItem(item))];
+        const seenLabels = new Set();
+        return merged.filter((item) => {
+            const signature = item.label.toLowerCase();
+            if (seenLabels.has(signature)) {
+                return false;
+            }
+            seenLabels.add(signature);
+            return true;
+        });
+    }
+    async saveProfileFromCurrentBlocklist() {
+        const profileName = this.ui.profileNameInput.value.trim();
+        if (!profileName) {
+            this.setStatus('Name the profile before saving.');
+            return;
+        }
+        const selectedProfile = this.getSelectedProfile();
+        const matchingProfile = this.profiles.find((profile) => profile.name.toLowerCase() === profileName.toLowerCase());
+        const existingProfile = selectedProfile ?? matchingProfile;
+        const now = Date.now();
+        const nextProfile = {
+            id: existingProfile?.id ?? this.createProfileId(),
+            name: profileName,
+            items: this.cloneItems(this.savedItems),
+            matchMode: this.matchMode,
+            createdAt: existingProfile?.createdAt ?? now,
+            updatedAt: now,
+        };
+        if (!await this.confirmProfileSave(existingProfile, nextProfile)) {
+            this.setStatus('Profile save cancelled.');
+            return;
+        }
+        const existingIndex = this.profiles.findIndex((profile) => profile.id === nextProfile.id);
+        if (existingIndex >= 0) {
+            this.profiles[existingIndex] = nextProfile;
+        }
+        else {
+            this.profiles.push(nextProfile);
+        }
+        this.updateProfilesStorage();
+        this.renderProfiles(nextProfile.id);
+        this.setStatus(`Saved profile "${nextProfile.name}" with ${nextProfile.items.length} target(s).`);
+    }
+    async confirmProfileSave(existingProfile, nextProfile) {
+        if (!existingProfile) {
+            if (nextProfile.items.length > 0) {
+                return true;
+            }
+            return this.openConfirmPrompt({
+                title: 'Warning',
+                message: 'Are you sure you want to save an empty profile? This profile has no blocked targets yet.',
+                confirmLabel: 'SAVE EMPTY',
+            });
+        }
+        if (this.hasSameProfileState(existingProfile, nextProfile)) {
+            return true;
+        }
+        const warning = nextProfile.items.length === 0
+            ? 'This would replace the saved profile with an empty blocklist.'
+            : nextProfile.items.length < existingProfile.items.length
+                ? 'The current blocklist has fewer targets than the saved profile.'
+                : 'This will replace the saved profile contents.';
+        return this.openConfirmPrompt({
+            title: 'Warning',
+            message: [
+                `Saved profile "${existingProfile.name}" has ${existingProfile.items.length} target(s).`,
+                `Current blocklist has ${nextProfile.items.length} target(s).`,
+                warning,
+                'Cancel if you meant to create a new profile instead.',
+            ].join('\n'),
+            confirmLabel: 'OVERWRITE',
+        });
+    }
+    hasSameProfileState(existingProfile, nextProfile) {
+        return (existingProfile.name === nextProfile.name &&
+            existingProfile.matchMode === nextProfile.matchMode &&
+            this.getBlocklistSignature(existingProfile.items) === this.getBlocklistSignature(nextProfile.items));
+    }
+    getBlocklistSignature(items) {
+        return items
+            .map((item) => `${item.type}:${String(item.id)}:${item.label.toLowerCase()}`)
+            .sort()
+            .join('|');
+    }
+    async loadSelectedProfile() {
+        const profile = this.getSelectedProfile();
+        if (!profile) {
+            this.setStatus('Choose a profile to load.');
+            return;
+        }
+        if (!await this.confirmProfileLoad(profile)) {
+            this.setStatus('Profile load cancelled.');
+            return;
+        }
+        this.savedItems = this.cloneItems(profile.items).map((item) => this.hydrateSavedItem(item));
+        this.matchMode = profile.matchMode;
+        this.ui.selectMatch.value = this.matchMode;
+        this.updateStorage();
+        this.renderList();
+        this.executeDestroyer();
+        this.setStatus(`Loaded profile "${profile.name}".`);
+    }
+    async confirmProfileLoad(profile) {
+        if (this.savedItems.length === 0 || this.getBlocklistSignature(this.savedItems) === this.getBlocklistSignature(profile.items)) {
+            return true;
+        }
+        return this.openConfirmPrompt({
+            title: 'Warning',
+            message: [
+                `Load "${profile.name}" with ${profile.items.length} target(s)?`,
+                `This replaces the current blocklist with ${this.savedItems.length} target(s).`,
+                'Saved profiles are not deleted.',
+            ].join('\n'),
+            confirmLabel: 'LOAD',
+        });
+    }
+    async deleteSelectedProfile() {
+        const profile = this.getSelectedProfile();
+        if (!profile) {
+            this.setStatus('Choose a profile to delete.');
+            return;
+        }
+        const confirmed = await this.openConfirmPrompt({
+            title: 'Warning',
+            message: `Are you sure you want to delete the saved profile "${profile.name}"?\nThis removes the saved profile only. Your current blocklist stays as-is.`,
+            confirmLabel: 'DELETE',
+        });
+        if (!confirmed) {
+            this.setStatus('Profile delete cancelled.');
+            return;
+        }
+        this.profiles = this.profiles.filter((savedProfile) => savedProfile.id !== profile.id);
+        this.updateProfilesStorage();
+        this.renderProfiles();
+        this.setStatus(`Deleted profile "${profile.name}".`);
+    }
+    async confirmPurgeCurrentBlocklist() {
+        const confirmed = await this.openConfirmPrompt({
+            title: 'Warning',
+            message: 'Are you sure you want to annihilate your current blocklist? Saved profiles stay intact.',
+            confirmLabel: 'ANNIHILATE',
+        });
+        if (!confirmed) {
+            return;
+        }
+        this.savedItems = [];
+        this.updateStorage();
+        this.renderList();
+        this.clearProfileDraft('Current blocklist purged. Saved profiles were not changed.');
+        this.executeDestroyer();
+    }
+    createProfileId() {
+        return `profile_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     }
     createBlockItem(value) {
         const lowerValue = value.toLowerCase();
@@ -666,6 +1056,22 @@ class DeluluDestroyerApp {
             this.updateStorage();
             this.executeDestroyer();
         });
+        this.ui.profileSelect.addEventListener('change', () => {
+            const selectedProfile = this.getSelectedProfile();
+            this.ui.profileNameInput.value = selectedProfile?.name ?? '';
+            this.syncProfileButtons();
+        });
+        this.ui.profileSaveButton.addEventListener('click', () => {
+            void this.saveProfileFromCurrentBlocklist();
+        });
+        this.ui.profileLoadButton.addEventListener('click', () => {
+            void this.loadSelectedProfile();
+        });
+        this.ui.profileDeleteButton.addEventListener('click', () => {
+            void this.deleteSelectedProfile();
+        });
+        this.ui.copyButton.addEventListener('click', () => this.copyCurrentBlocklist());
+        this.ui.importButton.addEventListener('click', () => this.importSharedBlocklist());
         this.ui.inputField.addEventListener('input', () => this.renderAutocomplete());
         this.ui.inputField.addEventListener('focus', () => this.renderAutocomplete());
         this.ui.addButton.addEventListener('click', () => this.addWord());
@@ -680,18 +1086,10 @@ class DeluluDestroyerApp {
             }
         });
         this.ui.purgeButton.addEventListener('click', () => {
-            this.ui.modalOverlay.style.display = 'flex';
+            void this.confirmPurgeCurrentBlocklist();
         });
-        this.ui.modalCancelButton.addEventListener('click', () => {
-            this.ui.modalOverlay.style.display = 'none';
-        });
-        this.ui.modalConfirmButton.addEventListener('click', () => {
-            this.savedItems = [];
-            this.updateStorage();
-            this.renderList();
-            this.executeDestroyer();
-            this.ui.modalOverlay.style.display = 'none';
-        });
+        this.ui.modalCancelButton.addEventListener('click', () => this.resolveConfirmPrompt(false));
+        this.ui.modalConfirmButton.addEventListener('click', () => this.resolveConfirmPrompt(true));
         this.ui.applyButton.addEventListener('click', () => {
             this.addWord();
             this.executeDestroyer();
@@ -942,6 +1340,24 @@ const DESTROYER_STYLES = `
         .dd-remove:hover { color: var(--dd-crimson); }
         .dd-empty { font-size: 11px; color: #8b949e; font-style: italic; width: 100%; text-align: center; padding: 10px 0; }
 
+        .dd-tools {
+            border: 1px solid var(--dd-border); border-radius: 10px; padding: 8px 10px;
+            background: rgba(22, 27, 34, 0.65);
+        }
+        .dd-tools summary { color: var(--dd-text); cursor: pointer; font-size: 12px; font-weight: bold; }
+        .dd-tool-group { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        .dd-tool-group + .dd-tool-group { border-top: 1px solid var(--dd-border); padding-top: 10px; }
+        .dd-action-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .dd-tool-group > .dd-btn { width: 100%; }
+        .dd-textarea {
+            width: 100%; min-height: 58px; resize: vertical; background: var(--dd-bg);
+            border: 1px solid var(--dd-border); color: var(--dd-text); border-radius: 8px;
+            padding: 8px 10px; font-size: 12px; outline: none; font-family: inherit;
+        }
+        .dd-textarea:focus { border-color: var(--dd-accent); }
+        .dd-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        #dd-status { min-height: 14px; color: #8b949e; font-size: 11px; line-height: 1.3; }
+
         /* Custom Modal */
         #dd-modal-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -954,7 +1370,7 @@ const DESTROYER_STYLES = `
             box-shadow: 0 0 30px rgba(255, 0, 85, 0.2); font-family: 'Segoe UI', Tahoma, sans-serif;
         }
         #dd-modal h3 { margin: 0 0 10px 0; color: var(--dd-crimson); font-size: 16px; font-weight: bold; text-transform: uppercase; }
-        #dd-modal p { margin: 0 0 24px 0; color: var(--dd-text); font-size: 13px; line-height: 1.4; }
+        #dd-modal p { margin: 0 0 24px 0; color: var(--dd-text); font-size: 13px; line-height: 1.4; white-space: pre-line; }
         .dd-modal-btns { display: flex; gap: 12px; justify-content: center; }
         .dd-btn-danger { background: var(--dd-crimson); color: #fff; border: none; }
         .dd-btn-danger:hover { background: #ff1a66; box-shadow: 0 0 10px rgba(255, 0, 85, 0.5); }
@@ -983,8 +1399,8 @@ function createDestroyerUi() {
     modalOverlay.id = 'dd-modal-overlay';
     modalOverlay.innerHTML = `
         <div id="dd-modal">
-            <h3>Warning</h3>
-            <p>Are you sure you want to annihilate your entire blocklist? This cannot be undone.</p>
+            <h3 id="dd-modal-title">Warning</h3>
+            <p id="dd-modal-message">Are you sure you want to annihilate your current blocklist? Saved profiles stay intact.</p>
             <div class="dd-modal-btns">
                 <button class="dd-btn" id="dd-modal-cancel">Cancel</button>
                 <button class="dd-btn dd-btn-danger" id="dd-modal-confirm">ANNIHILATE</button>
@@ -1020,6 +1436,27 @@ function createDestroyerUi() {
 
             <div id="dd-blocklist"></div>
 
+            <details class="dd-tools">
+                <summary>Profiles & sharing</summary>
+                <div class="dd-tool-group">
+                    <select id="dd-profile-select" class="dd-select" aria-label="Saved blocklist profiles"></select>
+                    <div class="dd-input-wrap">
+                        <input type="text" id="dd-profile-name" class="dd-input" placeholder="Profile name..." autocomplete="off">
+                        <button class="dd-btn" id="dd-profile-save">Save</button>
+                    </div>
+                    <div class="dd-action-row">
+                        <button class="dd-btn" id="dd-profile-load">Load</button>
+                        <button class="dd-btn" id="dd-profile-delete">Delete</button>
+                    </div>
+                </div>
+                <div class="dd-tool-group">
+                    <button class="dd-btn" id="dd-copy-blocklist">Copy blocklist</button>
+                    <textarea id="dd-import-text" class="dd-textarea" placeholder="Paste a shared blocklist here..."></textarea>
+                    <button class="dd-btn" id="dd-import-blocklist">Import & merge</button>
+                    <div id="dd-status" role="status" aria-live="polite"></div>
+                </div>
+            </details>
+
             <button class="dd-btn primary" id="dd-apply" style="width: 100%; margin-top: 5px;">APPLY & DESTROY</button>
         </div>
     `;
@@ -1028,11 +1465,22 @@ function createDestroyerUi() {
         launcher,
         panel,
         modalOverlay,
+        modalTitle: getRequiredElement('dd-modal-title', HTMLHeadingElement),
+        modalMessage: getRequiredElement('dd-modal-message', HTMLParagraphElement),
         selectMatch: getRequiredElement('dd-match', HTMLSelectElement),
         inputField: getRequiredElement('dd-input', HTMLInputElement),
         autocompleteBox: getRequiredElement('dd-autocomplete', HTMLDivElement),
         blocklistEl: getRequiredElement('dd-blocklist', HTMLDivElement),
         countEl: getRequiredElement('dd-count', HTMLSpanElement),
+        profileSelect: getRequiredElement('dd-profile-select', HTMLSelectElement),
+        profileNameInput: getRequiredElement('dd-profile-name', HTMLInputElement),
+        profileSaveButton: getRequiredElement('dd-profile-save', HTMLButtonElement),
+        profileLoadButton: getRequiredElement('dd-profile-load', HTMLButtonElement),
+        profileDeleteButton: getRequiredElement('dd-profile-delete', HTMLButtonElement),
+        copyButton: getRequiredElement('dd-copy-blocklist', HTMLButtonElement),
+        importText: getRequiredElement('dd-import-text', HTMLTextAreaElement),
+        importButton: getRequiredElement('dd-import-blocklist', HTMLButtonElement),
+        statusEl: getRequiredElement('dd-status', HTMLDivElement),
         closeButton: getRequiredElement('dd-close', HTMLButtonElement),
         addButton: getRequiredElement('dd-add', HTMLButtonElement),
         purgeButton: getRequiredElement('dd-purge', HTMLSpanElement),
