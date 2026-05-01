@@ -28,7 +28,9 @@ Proof from the Greasy Fork listing:
 - **Sleek floating panel**: A compact crimson rabbit launcher sits in the bottom-right corner of WTR Lab.
 - **Smart input**: Type a genre, API tag, or custom keyword. The script labels each target with color-coded badges.
 - **Seamless browsing**: WTR Lab navigation and infinite-scroll updates are watched so blocked novels stay hidden as pages change.
-- **Auto-save**: Your blocklist and search mode are saved locally by your userscript manager.
+- **Auto-save**: Your blocklist, profiles, and search mode are saved locally by your userscript manager.
+- **Blocklist sharing**: Copy your blocklist as text and import shared lists from other users.
+- **Saved profiles**: Store multiple named blocklist profiles, switch between them when needed, and get in-panel warnings before overwriting one.
 - **Safe purge**: Clearing the entire blocklist requires confirmation first.
 - **iOS-aware loading**: The script avoids Stay's page-injection path and applies saved filters as soon as it loads.
 
@@ -52,6 +54,7 @@ Proof from the Greasy Fork listing:
 3. Press Enter or click `+` to add it to your blocklist.
 4. Click **Apply & Destroy** to hide matching novels.
 5. Remove a block by clicking the `×` button on its badge.
+6. Open **Profiles & sharing** to copy/import blocklists or save the current blocklist as a named profile.
 
 ## Smart search modes
 
@@ -96,7 +99,7 @@ Important files:
 
 ## Privacy
 
-The script stores filter preferences locally through userscript storage, with a localStorage fallback for compatible runtimes. It does not collect analytics or send personal data to this repository owner.
+The script stores filter preferences and blocklist profiles locally through userscript storage, with a localStorage fallback for compatible runtimes. It does not collect analytics or send personal data to this repository owner.
 
 > [!IMPORTANT]
 > This project is an independent userscript and is not affiliated with WTR Lab.
