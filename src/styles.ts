@@ -99,6 +99,24 @@ export const DESTROYER_STYLES = `
         .dd-remove:hover { color: var(--dd-crimson); }
         .dd-empty { font-size: 11px; color: #8b949e; font-style: italic; width: 100%; text-align: center; padding: 10px 0; }
 
+        .dd-tools {
+            border: 1px solid var(--dd-border); border-radius: 10px; padding: 8px 10px;
+            background: rgba(22, 27, 34, 0.65);
+        }
+        .dd-tools summary { color: var(--dd-text); cursor: pointer; font-size: 12px; font-weight: bold; }
+        .dd-tool-group { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        .dd-tool-group + .dd-tool-group { border-top: 1px solid var(--dd-border); padding-top: 10px; }
+        .dd-action-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .dd-tool-group > .dd-btn { width: 100%; }
+        .dd-textarea {
+            width: 100%; min-height: 58px; resize: vertical; background: var(--dd-bg);
+            border: 1px solid var(--dd-border); color: var(--dd-text); border-radius: 8px;
+            padding: 8px 10px; font-size: 12px; outline: none; font-family: inherit;
+        }
+        .dd-textarea:focus { border-color: var(--dd-accent); }
+        .dd-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        #dd-status { min-height: 14px; color: #8b949e; font-size: 11px; line-height: 1.3; }
+
         /* Custom Modal */
         #dd-modal-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -111,7 +129,7 @@ export const DESTROYER_STYLES = `
             box-shadow: 0 0 30px rgba(255, 0, 85, 0.2); font-family: 'Segoe UI', Tahoma, sans-serif;
         }
         #dd-modal h3 { margin: 0 0 10px 0; color: var(--dd-crimson); font-size: 16px; font-weight: bold; text-transform: uppercase; }
-        #dd-modal p { margin: 0 0 24px 0; color: var(--dd-text); font-size: 13px; line-height: 1.4; }
+        #dd-modal p { margin: 0 0 24px 0; color: var(--dd-text); font-size: 13px; line-height: 1.4; white-space: pre-line; }
         .dd-modal-btns { display: flex; gap: 12px; justify-content: center; }
         .dd-btn-danger { background: var(--dd-crimson); color: #fff; border: none; }
         .dd-btn-danger:hover { background: #ff1a66; box-shadow: 0 0 10px rgba(255, 0, 85, 0.5); }

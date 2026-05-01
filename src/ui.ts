@@ -4,11 +4,22 @@ export interface DestroyerUi {
     launcher: HTMLButtonElement;
     panel: HTMLDivElement;
     modalOverlay: HTMLDivElement;
+    modalTitle: HTMLHeadingElement;
+    modalMessage: HTMLParagraphElement;
     selectMatch: HTMLSelectElement;
     inputField: HTMLInputElement;
     autocompleteBox: HTMLDivElement;
     blocklistEl: HTMLDivElement;
     countEl: HTMLSpanElement;
+    profileSelect: HTMLSelectElement;
+    profileNameInput: HTMLInputElement;
+    profileSaveButton: HTMLButtonElement;
+    profileLoadButton: HTMLButtonElement;
+    profileDeleteButton: HTMLButtonElement;
+    copyButton: HTMLButtonElement;
+    importText: HTMLTextAreaElement;
+    importButton: HTMLButtonElement;
+    statusEl: HTMLDivElement;
     closeButton: HTMLButtonElement;
     addButton: HTMLButtonElement;
     purgeButton: HTMLSpanElement;
@@ -39,8 +50,8 @@ export function createDestroyerUi(): DestroyerUi {
     modalOverlay.id = 'dd-modal-overlay';
     modalOverlay.innerHTML = `
         <div id="dd-modal">
-            <h3>Warning</h3>
-            <p>Are you sure you want to annihilate your entire blocklist? This cannot be undone.</p>
+            <h3 id="dd-modal-title">Warning</h3>
+            <p id="dd-modal-message">Are you sure you want to annihilate your current blocklist? Saved profiles stay intact.</p>
             <div class="dd-modal-btns">
                 <button class="dd-btn" id="dd-modal-cancel">Cancel</button>
                 <button class="dd-btn dd-btn-danger" id="dd-modal-confirm">ANNIHILATE</button>
@@ -77,6 +88,27 @@ export function createDestroyerUi(): DestroyerUi {
 
             <div id="dd-blocklist"></div>
 
+            <details class="dd-tools">
+                <summary>Profiles & sharing</summary>
+                <div class="dd-tool-group">
+                    <select id="dd-profile-select" class="dd-select" aria-label="Saved blocklist profiles"></select>
+                    <div class="dd-input-wrap">
+                        <input type="text" id="dd-profile-name" class="dd-input" placeholder="Profile name..." autocomplete="off">
+                        <button class="dd-btn" id="dd-profile-save">Save</button>
+                    </div>
+                    <div class="dd-action-row">
+                        <button class="dd-btn" id="dd-profile-load">Load</button>
+                        <button class="dd-btn" id="dd-profile-delete">Delete</button>
+                    </div>
+                </div>
+                <div class="dd-tool-group">
+                    <button class="dd-btn" id="dd-copy-blocklist">Copy blocklist</button>
+                    <textarea id="dd-import-text" class="dd-textarea" placeholder="Paste a shared blocklist here..."></textarea>
+                    <button class="dd-btn" id="dd-import-blocklist">Import & merge</button>
+                    <div id="dd-status" role="status" aria-live="polite"></div>
+                </div>
+            </details>
+
             <button class="dd-btn primary" id="dd-apply" style="width: 100%; margin-top: 5px;">APPLY & DESTROY</button>
         </div>
     `;
@@ -86,11 +118,22 @@ export function createDestroyerUi(): DestroyerUi {
         launcher,
         panel,
         modalOverlay,
+        modalTitle: getRequiredElement('dd-modal-title', HTMLHeadingElement),
+        modalMessage: getRequiredElement('dd-modal-message', HTMLParagraphElement),
         selectMatch: getRequiredElement('dd-match', HTMLSelectElement),
         inputField: getRequiredElement('dd-input', HTMLInputElement),
         autocompleteBox: getRequiredElement('dd-autocomplete', HTMLDivElement),
         blocklistEl: getRequiredElement('dd-blocklist', HTMLDivElement),
         countEl: getRequiredElement('dd-count', HTMLSpanElement),
+        profileSelect: getRequiredElement('dd-profile-select', HTMLSelectElement),
+        profileNameInput: getRequiredElement('dd-profile-name', HTMLInputElement),
+        profileSaveButton: getRequiredElement('dd-profile-save', HTMLButtonElement),
+        profileLoadButton: getRequiredElement('dd-profile-load', HTMLButtonElement),
+        profileDeleteButton: getRequiredElement('dd-profile-delete', HTMLButtonElement),
+        copyButton: getRequiredElement('dd-copy-blocklist', HTMLButtonElement),
+        importText: getRequiredElement('dd-import-text', HTMLTextAreaElement),
+        importButton: getRequiredElement('dd-import-blocklist', HTMLButtonElement),
+        statusEl: getRequiredElement('dd-status', HTMLDivElement),
         closeButton: getRequiredElement('dd-close', HTMLButtonElement),
         addButton: getRequiredElement('dd-add', HTMLButtonElement),
         purgeButton: getRequiredElement('dd-purge', HTMLSpanElement),

@@ -3,9 +3,14 @@ export const SCRIPT_VERSION = '4.9';
 export const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',
     matchMode: 'wtr_match_mode',
+    profiles: 'wtr_profiles',
 } as const;
 
 export const DEFAULT_MATCH_MODE = 'broad';
+
+export const SHARE_PAYLOAD_APP = 'wtr-delulu-destroyer';
+
+export const SHARE_PAYLOAD_VERSION = 1;
 
 export const NEXT_BUILD_ID_FALLBACK = 'B_iTIc03bagM1u-Uo_553';
 

@@ -14,6 +14,22 @@ export interface ApiTag {
     category_id?: string | number;
 }
 
+export interface BlocklistProfile {
+    id: string;
+    name: string;
+    items: BlockItem[];
+    matchMode: MatchMode;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface BlocklistSharePayload {
+    app: string;
+    version: number;
+    items: BlockItem[];
+    matchMode?: MatchMode;
+}
+
 export interface SeriesMetadata {
     rawId?: number;
     slug?: string;
