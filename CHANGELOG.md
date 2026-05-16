@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## [5.1] - 2026-05-16
+
+### Added
+
+- Added a hide button (–) in the panel header that minimizes the floating Destroyer launcher down to a small rabbit dot in the corner.
+- Added a click/tap on the minimized rabbit dot to bring the full launcher back.
+- Persist the minimized state across page loads so the widget stays out of the way until you choose to show it again.
+- Added drag-to-reposition for the launcher, the minimized dot, and the panel header. Works with mouse, touch, and pen via Pointer Events, snaps inside the viewport, and remembers the position across reloads.
+
 ## [5.0] - 2026-05-02
 
 ### Added
