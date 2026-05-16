@@ -25,7 +25,8 @@ Proof from the Greasy Fork listing:
 
 ## Features
 
-- **Sleek floating panel**: A compact crimson rabbit launcher sits in the bottom-right corner of WTR Lab.
+- **Sleek floating panel**: A compact crimson rabbit launcher sits in the bottom-right corner of WTR Lab. Drag it anywhere you prefer on desktop, mobile, or tablet.
+- **Minimize when you need space**: Collapse the launcher into a tiny rabbit dot with one click. Tap the dot to bring it back, and your preference survives reloads.
 - **Smart input**: Type a genre, API tag, or custom keyword. The script labels each target with color-coded badges.
 - **Seamless browsing**: WTR Lab navigation and infinite-scroll updates are watched so blocked novels stay hidden as pages change.
 - **Auto-save**: Your blocklist, profiles, and search mode are saved locally by your userscript manager.
@@ -50,7 +51,9 @@ Proof from the Greasy Fork listing:
 ## How to use
 
 1. Open the panel from the floating **Destroyer** button.
-2. Type a genre such as `harem`, a tag such as `tragedy`, or a custom keyword such as `system`.
+2. Drag the launcher or the panel header to reposition the widget wherever you want. The position persists across visits.
+3. Click the **–** (minimize) button in the panel header to collapse the launcher into a small rabbit dot. Click the dot to bring it back.
+4. Type a genre such as `harem`, a tag such as `tragedy`, or a custom keyword such as `system`.
 3. Press Enter or click `+` to add it to your blocklist.
 4. Click **Apply & Destroy** to hide matching novels.
 5. Remove a block by clicking the `×` button on its badge.
@@ -74,7 +77,7 @@ The userscript metadata uses `@run-at document-end` and `@noframes`, and the sou
 
 ## Compatibility
 
-- Current userscript version: `5.0`
+- Current userscript version: `5.1`
 - Target site: `https://wtr-lab.com/*`
 - Recommended managers: ScriptCat, Violentmonkey, and Stay
 - Output format: bundled JavaScript userscript generated from modular TypeScript
