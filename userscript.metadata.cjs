@@ -1,7 +1,7 @@
 const USERSCRIPT_METADATA = `// ==UserScript==
 // @name         WTR Lab Delulu Destroyer
 // @namespace    https://docs.scriptcat.org/en/
-// @version      5.0
+// @version      5.1
 // @description  A lightweight, floating, ultra-fast novel purger for WTR Lab.
 // @author       MasuRii
 // @match        https://wtr-lab.com/*
