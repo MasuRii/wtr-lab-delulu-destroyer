@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WTR Lab Delulu Destroyer
 // @namespace    https://docs.scriptcat.org/en/
-// @version      5.0
+// @version      5.1
 // @description  A lightweight, floating, ultra-fast novel purger for WTR Lab.
 // @author       MasuRii
 // @match        https://wtr-lab.com/*
@@ -24,11 +24,13 @@
 /******/ 	"use strict";
 
 ;// ./src/constants.ts
-const SCRIPT_VERSION = '5.0';
+const SCRIPT_VERSION = '5.1';
 const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',
     matchMode: 'wtr_match_mode',
     profiles: 'wtr_profiles',
+    launcherHidden: 'wtr_launcher_hidden',
+    widgetPosition: 'wtr_widget_position',
 };
 const DEFAULT_MATCH_MODE = 'broad';
 const SHARE_PAYLOAD_APP = 'wtr-delulu-destroyer';
@@ -38,6 +40,11 @@ const TARGET_SELECTORS = '.list-item, .rank-item, .serie-item, .image-wrap.zoom,
 const HIDDEN_ATTRIBUTE = 'data-dd-hidden';
 const PREVIOUS_DISPLAY_ATTRIBUTE = 'data-dd-previous-display';
 const PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE = 'data-dd-previous-display-priority';
+const DEFAULT_ANCHOR_RIGHT = 20;
+const DEFAULT_ANCHOR_BOTTOM = 20;
+const PANEL_ANCHOR_OFFSET = 60;
+const ANCHOR_VIEWPORT_PADDING = 4;
+const DRAG_THRESHOLD_PX = 5;
 const WTR_GENRES = [
     'action',
     'adult',
@@ -258,9 +265,15 @@ class DeluluDestroyerApp {
         this.seriesByRawId = new Map();
         this.seriesBySlug = new Map();
         this.uiHiddenByRoute = false;
+        this.dragSuppressNextClick = false;
+        this.viewportResizeQueued = false;
         this.savedItems = this.loadSavedItems();
         this.matchMode = this.loadMatchMode();
         this.profiles = this.loadProfiles();
+        this.launcherHidden = this.loadLauncherHidden();
+        const position = this.loadWidgetPosition();
+        this.anchorRight = position.right;
+        this.anchorBottom = position.bottom;
         this.ui.selectMatch.value = this.matchMode;
     }
     async init() {
@@ -270,6 +283,8 @@ class DeluluDestroyerApp {
         this.renderProfiles();
         this.bindEvents();
         this.bindRouteAndMutationHandlers();
+        this.applyAnchorPosition();
+        this.syncLauncherVisibility();
         void this.loadCurrentRouteMetadata();
         this.executeDestroyer();
         await this.loadApiTags();
@@ -287,6 +302,254 @@ class DeluluDestroyerApp {
     loadMatchMode() {
         const value = getValue(STORAGE_KEYS.matchMode, DEFAULT_MATCH_MODE);
         return value === 'strict' ? 'strict' : 'broad';
+    }
+    loadLauncherHidden() {
+        return getValue(STORAGE_KEYS.launcherHidden, 'false') === 'true';
+    }
+    updateLauncherHiddenStorage() {
+        setValue(STORAGE_KEYS.launcherHidden, this.launcherHidden ? 'true' : 'false');
+    }
+    syncLauncherVisibility() {
+        if (this.uiHiddenByRoute) {
+            return;
+        }
+        if (this.ui.panel.style.display === 'flex') {
+            this.ui.launcher.style.display = 'none';
+            this.ui.restoreButton.style.display = 'none';
+            this.applyAnchorPosition();
+            return;
+        }
+        if (this.launcherHidden) {
+            this.ui.launcher.style.display = 'none';
+            this.ui.restoreButton.style.display = 'flex';
+        }
+        else {
+            this.ui.launcher.style.display = 'flex';
+            this.ui.restoreButton.style.display = 'none';
+        }
+        this.applyAnchorPosition();
+    }
+    hideWidget() {
+        this.launcherHidden = true;
+        this.updateLauncherHiddenStorage();
+        this.ui.panel.style.display = 'none';
+        this.ui.autocompleteBox.style.display = 'none';
+        this.syncLauncherVisibility();
+    }
+    showWidget() {
+        this.launcherHidden = false;
+        this.updateLauncherHiddenStorage();
+        this.syncLauncherVisibility();
+    }
+    loadWidgetPosition() {
+        try {
+            const parsed = JSON.parse(getValue(STORAGE_KEYS.widgetPosition, ''));
+            if (parsed && typeof parsed === 'object') {
+                const candidate = parsed;
+                if (typeof candidate.right === 'number' && typeof candidate.bottom === 'number'
+                    && Number.isFinite(candidate.right) && Number.isFinite(candidate.bottom)) {
+                    return { right: candidate.right, bottom: candidate.bottom };
+                }
+            }
+        }
+        catch {
+            // Ignore malformed storage; fall through to defaults.
+        }
+        return { right: DEFAULT_ANCHOR_RIGHT, bottom: DEFAULT_ANCHOR_BOTTOM };
+    }
+    updateWidgetPositionStorage() {
+        setValue(STORAGE_KEYS.widgetPosition, JSON.stringify({
+            right: Math.round(this.anchorRight),
+            bottom: Math.round(this.anchorBottom),
+        }));
+    }
+    applyAnchorPosition() {
+        const clamped = this.clampAnchor(this.anchorRight, this.anchorBottom);
+        this.anchorRight = clamped.right;
+        this.anchorBottom = clamped.bottom;
+        const root = document.documentElement;
+        root.style.setProperty('--dd-anchor-right', `${this.anchorRight}px`);
+        root.style.setProperty('--dd-anchor-bottom', `${this.anchorBottom}px`);
+    }
+    clampAnchor(right, bottom) {
+        const viewportWidth = Math.max(window.innerWidth || 0, 0);
+        const viewportHeight = Math.max(window.innerHeight || 0, 0);
+        const widgetSize = this.measureActiveWidget();
+        const panelOpen = this.ui.panel.style.display === 'flex';
+        const panelRect = panelOpen ? this.ui.panel.getBoundingClientRect() : null;
+        const widgetWidth = widgetSize.width;
+        const widgetHeight = widgetSize.height;
+        const panelWidth = panelRect?.width ?? 0;
+        const panelHeight = panelRect?.height ?? 0;
+        const occupiedWidth = Math.max(widgetWidth, panelWidth);
+        const occupiedHeight = panelOpen
+            ? PANEL_ANCHOR_OFFSET + panelHeight
+            : widgetHeight;
+        const maxRight = Math.max(ANCHOR_VIEWPORT_PADDING, viewportWidth - occupiedWidth - ANCHOR_VIEWPORT_PADDING);
+        const maxBottom = Math.max(ANCHOR_VIEWPORT_PADDING, viewportHeight - occupiedHeight - ANCHOR_VIEWPORT_PADDING);
+        const safeRight = Math.min(Math.max(right, ANCHOR_VIEWPORT_PADDING), maxRight);
+        const safeBottom = Math.min(Math.max(bottom, ANCHOR_VIEWPORT_PADDING), maxBottom);
+        return { right: safeRight, bottom: safeBottom };
+    }
+    measureActiveWidget() {
+        const candidates = [];
+        if (this.ui.panel.style.display === 'flex') {
+            candidates.push(this.ui.launcher);
+        }
+        else if (this.launcherHidden) {
+            candidates.push(this.ui.restoreButton);
+        }
+        else {
+            candidates.push(this.ui.launcher);
+        }
+        for (const candidate of candidates) {
+            const rect = candidate.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                return { width: rect.width, height: rect.height };
+            }
+        }
+        return { width: 120, height: 36 };
+    }
+    bindDragHandle(handle, options) {
+        handle.addEventListener('pointerdown', (event) => this.handleDragPointerDown(event, handle, options));
+        handle.addEventListener('dragstart', (event) => event.preventDefault());
+        if (options.triggersClick) {
+            handle.addEventListener('click', (event) => {
+                if (this.dragSuppressNextClick) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    this.dragSuppressNextClick = false;
+                }
+            }, true);
+        }
+    }
+    handleDragPointerDown(event, handle, options) {
+        if (event.button !== undefined && event.button !== 0) {
+            return;
+        }
+        if (this.dragState) {
+            return;
+        }
+        const target = event.target;
+        const interactive = target?.closest('button, a, input, select, textarea, summary, [contenteditable="true"]') ?? null;
+        if (interactive && interactive !== handle) {
+            return;
+        }
+        const pointerMove = (moveEvent) => this.handleDragPointerMove(moveEvent);
+        const pointerUp = (upEvent) => this.handleDragPointerUp(upEvent);
+        const pointerCancel = (cancelEvent) => this.handleDragPointerUp(cancelEvent);
+        this.activeDragPointerId = event.pointerId;
+        this.dragState = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            startRight: this.anchorRight,
+            startBottom: this.anchorBottom,
+            moved: false,
+            handle,
+            triggersClick: options.triggersClick,
+            pointerMove,
+            pointerUp,
+            pointerCancel,
+        };
+        document.addEventListener('pointermove', pointerMove, { passive: false });
+        document.addEventListener('pointerup', pointerUp);
+        document.addEventListener('pointercancel', pointerCancel);
+        if (typeof handle.setPointerCapture === 'function') {
+            try {
+                handle.setPointerCapture(event.pointerId);
+            }
+            catch {
+                // Some browsers reject capture for synthetic pointers; ignore.
+            }
+        }
+        if (!options.triggersClick) {
+            event.preventDefault();
+        }
+    }
+    handleDragPointerMove(event) {
+        if (!this.dragState || this.dragState.pointerId !== event.pointerId) {
+            return;
+        }
+        const deltaX = event.clientX - this.dragState.startX;
+        const deltaY = event.clientY - this.dragState.startY;
+        if (!this.dragState.moved) {
+            if (Math.abs(deltaX) < DRAG_THRESHOLD_PX && Math.abs(deltaY) < DRAG_THRESHOLD_PX) {
+                return;
+            }
+            this.dragState.moved = true;
+            document.body.classList.add('dd-dragging');
+        }
+        if (event.cancelable) {
+            event.preventDefault();
+        }
+        const nextRight = this.dragState.startRight - deltaX;
+        const nextBottom = this.dragState.startBottom - deltaY;
+        const clamped = this.clampAnchor(nextRight, nextBottom);
+        this.anchorRight = clamped.right;
+        this.anchorBottom = clamped.bottom;
+        this.applyAnchorPosition();
+    }
+    handleDragPointerUp(event) {
+        if (!this.dragState || this.dragState.pointerId !== event.pointerId) {
+            return;
+        }
+        const moved = this.dragState.moved;
+        const handle = this.dragState.handle;
+        const triggersClick = this.dragState.triggersClick;
+        this.releasePointerCapture(handle, event.pointerId);
+        this.detachDocumentPointerListeners();
+        this.dragState = undefined;
+        this.activeDragPointerId = undefined;
+        document.body.classList.remove('dd-dragging');
+        if (moved) {
+            this.updateWidgetPositionStorage();
+            if (triggersClick) {
+                this.dragSuppressNextClick = true;
+                setTimeout(() => {
+                    this.dragSuppressNextClick = false;
+                }, 350);
+            }
+        }
+    }
+    detachDocumentPointerListeners() {
+        if (!this.dragState) {
+            return;
+        }
+        document.removeEventListener('pointermove', this.dragState.pointerMove);
+        document.removeEventListener('pointerup', this.dragState.pointerUp);
+        document.removeEventListener('pointercancel', this.dragState.pointerCancel);
+    }
+    releasePointerCapture(handle, pointerId) {
+        if (typeof handle.releasePointerCapture !== 'function') {
+            return;
+        }
+        try {
+            if (typeof handle.hasPointerCapture === 'function' && !handle.hasPointerCapture(pointerId)) {
+                return;
+            }
+            handle.releasePointerCapture(pointerId);
+        }
+        catch {
+            // Ignore: pointer may already be released by the browser.
+        }
+    }
+    handleViewportResize() {
+        if (this.viewportResizeQueued) {
+            return;
+        }
+        this.viewportResizeQueued = true;
+        const reflow = () => {
+            this.viewportResizeQueued = false;
+            this.applyAnchorPosition();
+            this.updateWidgetPositionStorage();
+        };
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(reflow);
+        }
+        else {
+            setTimeout(reflow, 0);
+        }
     }
     loadProfiles() {
         try {
@@ -349,13 +612,14 @@ class DeluluDestroyerApp {
             if (!this.uiHiddenByRoute) {
                 this.ui.launcher.style.display = 'none';
                 this.ui.panel.style.display = 'none';
+                this.ui.restoreButton.style.display = 'none';
                 this.uiHiddenByRoute = true;
             }
             return;
         }
         if (this.uiHiddenByRoute) {
-            this.ui.launcher.style.display = 'flex';
             this.uiHiddenByRoute = false;
+            this.syncLauncherVisibility();
         }
         if (this.savedItems.length === 0) {
             this.restoreHiddenContainers();
@@ -1038,19 +1302,24 @@ class DeluluDestroyerApp {
     openPanel() {
         this.ui.panel.style.display = 'flex';
         this.ui.launcher.style.display = 'none';
+        this.ui.restoreButton.style.display = 'none';
+        this.applyAnchorPosition();
         this.ui.inputField.focus();
     }
     bindEvents() {
+        this.bindDragHandle(this.ui.launcher, { triggersClick: true });
+        this.bindDragHandle(this.ui.restoreButton, { triggersClick: true });
+        this.bindDragHandle(this.ui.panelHeader, { triggersClick: false });
         this.ui.launcher.addEventListener('click', () => this.openPanel());
-        this.ui.launcher.addEventListener('touchend', (event) => {
-            event.preventDefault();
-            this.openPanel();
-        }, { passive: false });
+        this.ui.restoreButton.addEventListener('click', () => this.showWidget());
+        addEventListener('resize', () => this.handleViewportResize());
+        addEventListener('orientationchange', () => this.handleViewportResize());
         this.ui.closeButton.addEventListener('click', () => {
             this.ui.panel.style.display = 'none';
-            this.ui.launcher.style.display = 'flex';
             this.ui.autocompleteBox.style.display = 'none';
+            this.syncLauncherVisibility();
         });
+        this.ui.hideButton.addEventListener('click', () => this.hideWidget());
         this.ui.selectMatch.addEventListener('change', () => {
             this.matchMode = this.ui.selectMatch.value === 'strict' ? 'strict' : 'broad';
             this.updateStorage();
@@ -1094,7 +1363,7 @@ class DeluluDestroyerApp {
             this.addWord();
             this.executeDestroyer();
             this.ui.panel.style.display = 'none';
-            this.ui.launcher.style.display = 'flex';
+            this.syncLauncherVisibility();
         });
     }
     cacheNextDataScriptMetadata() {
@@ -1245,23 +1514,43 @@ const DESTROYER_STYLES = `
             --dd-accent: #00ffff; --dd-crimson: #ff0055; 
             --dd-tag: #00ffff; --dd-genre: #ff7b72; --dd-custom: #a371f7;
             --dd-border: #30363d;
+            --dd-anchor-right: 20px; --dd-anchor-bottom: 20px;
         }
+
+        body.dd-dragging, body.dd-dragging * { cursor: grabbing !important; user-select: none !important; }
 
         /* Launcher Button */
         #dd-launcher {
-            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+            position: fixed; bottom: var(--dd-anchor-bottom); right: var(--dd-anchor-right); z-index: 9999;
             background: var(--dd-bg); border: 2px solid var(--dd-crimson);
             border-radius: 50px; padding: 8px 16px; display: flex; align-items: center; gap: 8px;
-            cursor: pointer; box-shadow: 0 4px 15px rgba(255, 0, 85, 0.3);
+            cursor: grab; box-shadow: 0 4px 15px rgba(255, 0, 85, 0.3);
             transition: transform 0.2s, box-shadow 0.2s; appearance: none; -webkit-appearance: none;
-            touch-action: manipulation;
+            touch-action: none; user-select: none;
         }
+        #dd-launcher:active { cursor: grabbing; }
         #dd-launcher:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 0, 85, 0.5); }
-        #dd-launcher span { color: var(--dd-text); font-family: monospace; font-weight: bold; font-size: 13px; }
+        #dd-launcher span { color: var(--dd-text); font-family: monospace; font-weight: bold; font-size: 13px; pointer-events: none; }
+        #dd-launcher svg { pointer-events: none; }
+
+        /* Minimized Restore Dot */
+        #dd-restore {
+            position: fixed; bottom: var(--dd-anchor-bottom); right: var(--dd-anchor-right); z-index: 9998;
+            width: 28px; height: 28px; padding: 0; display: none;
+            align-items: center; justify-content: center;
+            background: var(--dd-bg); border: 1px solid var(--dd-crimson);
+            border-radius: 50%; cursor: grab; opacity: 0.55;
+            box-shadow: 0 2px 8px rgba(255, 0, 85, 0.25);
+            transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+            appearance: none; -webkit-appearance: none; touch-action: none; user-select: none;
+        }
+        #dd-restore:active { cursor: grabbing; }
+        #dd-restore:hover { opacity: 1; transform: scale(1.08); box-shadow: 0 4px 12px rgba(255, 0, 85, 0.5); }
+        #dd-restore svg { width: 16px; height: 16px; pointer-events: none; }
 
         /* Floating Panel */
         #dd-panel {
-            position: fixed; bottom: 80px; right: 20px; width: 340px; z-index: 10000;
+            position: fixed; bottom: calc(var(--dd-anchor-bottom) + 60px); right: var(--dd-anchor-right); width: 340px; z-index: 10000;
             background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(8px);
             border: 1px solid var(--dd-border); border-radius: 16px;
             display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
@@ -1272,11 +1561,20 @@ const DESTROYER_STYLES = `
         #dd-header {
             background: var(--dd-pane); padding: 12px 16px; border-bottom: 1px solid var(--dd-border);
             border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center;
+            cursor: grab; touch-action: none; user-select: none;
         }
+        #dd-header:active { cursor: grabbing; }
         .dd-title-wrap { display: flex; align-items: center; gap: 8px; }
         .dd-title-wrap h2 { margin: 0; font-size: 14px; color: var(--dd-text); letter-spacing: 1px; font-weight: bold; }
-        #dd-close { background: transparent; border: none; color: #8b949e; cursor: pointer; font-size: 16px; transition: color 0.2s; }
-        #dd-close:hover { color: var(--dd-crimson); }
+        .dd-header-actions { display: flex; align-items: center; gap: 2px; }
+        #dd-close, #dd-hide {
+            background: transparent; border: none; color: #8b949e; cursor: pointer;
+            font-size: 14px; line-height: 1; padding: 0; border-radius: 4px;
+            width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+            transition: color 0.2s, background 0.2s;
+        }
+        #dd-close:hover { color: var(--dd-crimson); background: rgba(255, 0, 85, 0.08); }
+        #dd-hide:hover { color: var(--dd-accent); background: rgba(0, 255, 255, 0.08); }
 
         /* Body Area */
         .dd-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; position: relative; }
@@ -1395,6 +1693,13 @@ function createDestroyerUi() {
     launcher.setAttribute('aria-label', 'Open Delulu Destroyer');
     launcher.innerHTML = `${WTR_SVG}<span>DESTROYER</span>`;
     document.body.appendChild(launcher);
+    const restoreButton = document.createElement('button');
+    restoreButton.id = 'dd-restore';
+    restoreButton.type = 'button';
+    restoreButton.title = 'Show Delulu Destroyer';
+    restoreButton.setAttribute('aria-label', 'Show Delulu Destroyer');
+    restoreButton.innerHTML = WTR_SVG;
+    document.body.appendChild(restoreButton);
     const modalOverlay = document.createElement('div');
     modalOverlay.id = 'dd-modal-overlay';
     modalOverlay.innerHTML = `
@@ -1413,7 +1718,10 @@ function createDestroyerUi() {
     panel.innerHTML = `
         <div id="dd-header">
             <div class="dd-title-wrap">${WTR_SVG}<h2>D. DESTROYER</h2></div>
-            <button id="dd-close">✖</button>
+            <div class="dd-header-actions">
+                <button id="dd-hide" type="button" title="Hide widget (click the rabbit dot to bring it back)" aria-label="Hide Delulu Destroyer widget">–</button>
+                <button id="dd-close" type="button" title="Close panel" aria-label="Close panel">✖</button>
+            </div>
         </div>
         <div class="dd-body">
             <select id="dd-match" class="dd-select">
@@ -1463,7 +1771,9 @@ function createDestroyerUi() {
     document.body.appendChild(panel);
     return {
         launcher,
+        restoreButton,
         panel,
+        panelHeader: getRequiredElement('dd-header', HTMLDivElement),
         modalOverlay,
         modalTitle: getRequiredElement('dd-modal-title', HTMLHeadingElement),
         modalMessage: getRequiredElement('dd-modal-message', HTMLParagraphElement),
@@ -1482,6 +1792,7 @@ function createDestroyerUi() {
         importButton: getRequiredElement('dd-import-blocklist', HTMLButtonElement),
         statusEl: getRequiredElement('dd-status', HTMLDivElement),
         closeButton: getRequiredElement('dd-close', HTMLButtonElement),
+        hideButton: getRequiredElement('dd-hide', HTMLButtonElement),
         addButton: getRequiredElement('dd-add', HTMLButtonElement),
         purgeButton: getRequiredElement('dd-purge', HTMLSpanElement),
         modalCancelButton: getRequiredElement('dd-modal-cancel', HTMLButtonElement),
