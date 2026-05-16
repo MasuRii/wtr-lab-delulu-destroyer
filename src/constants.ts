@@ -1,9 +1,11 @@
-export const SCRIPT_VERSION = '5.0';
+export const SCRIPT_VERSION = '5.1';
 
 export const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',
     matchMode: 'wtr_match_mode',
     profiles: 'wtr_profiles',
+    launcherHidden: 'wtr_launcher_hidden',
+    widgetPosition: 'wtr_widget_position',
 } as const;
 
 export const DEFAULT_MATCH_MODE = 'broad';
@@ -19,6 +21,12 @@ export const TARGET_SELECTORS = '.list-item, .rank-item, .serie-item, .image-wra
 export const HIDDEN_ATTRIBUTE = 'data-dd-hidden';
 export const PREVIOUS_DISPLAY_ATTRIBUTE = 'data-dd-previous-display';
 export const PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE = 'data-dd-previous-display-priority';
+
+export const DEFAULT_ANCHOR_RIGHT = 20;
+export const DEFAULT_ANCHOR_BOTTOM = 20;
+export const PANEL_ANCHOR_OFFSET = 60;
+export const ANCHOR_VIEWPORT_PADDING = 4;
+export const DRAG_THRESHOLD_PX = 5;
 
 export const WTR_GENRES = [
     'action',

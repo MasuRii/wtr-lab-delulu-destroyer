@@ -2,7 +2,9 @@ import { WTR_SVG } from './icon';
 
 export interface DestroyerUi {
     launcher: HTMLButtonElement;
+    restoreButton: HTMLButtonElement;
     panel: HTMLDivElement;
+    panelHeader: HTMLDivElement;
     modalOverlay: HTMLDivElement;
     modalTitle: HTMLHeadingElement;
     modalMessage: HTMLParagraphElement;
@@ -21,6 +23,7 @@ export interface DestroyerUi {
     importButton: HTMLButtonElement;
     statusEl: HTMLDivElement;
     closeButton: HTMLButtonElement;
+    hideButton: HTMLButtonElement;
     addButton: HTMLButtonElement;
     purgeButton: HTMLSpanElement;
     modalCancelButton: HTMLButtonElement;
@@ -46,6 +49,14 @@ export function createDestroyerUi(): DestroyerUi {
     launcher.innerHTML = `${WTR_SVG}<span>DESTROYER</span>`;
     document.body.appendChild(launcher);
 
+    const restoreButton = document.createElement('button');
+    restoreButton.id = 'dd-restore';
+    restoreButton.type = 'button';
+    restoreButton.title = 'Show Delulu Destroyer';
+    restoreButton.setAttribute('aria-label', 'Show Delulu Destroyer');
+    restoreButton.innerHTML = WTR_SVG;
+    document.body.appendChild(restoreButton);
+
     const modalOverlay = document.createElement('div');
     modalOverlay.id = 'dd-modal-overlay';
     modalOverlay.innerHTML = `
@@ -65,7 +76,10 @@ export function createDestroyerUi(): DestroyerUi {
     panel.innerHTML = `
         <div id="dd-header">
             <div class="dd-title-wrap">${WTR_SVG}<h2>D. DESTROYER</h2></div>
-            <button id="dd-close">✖</button>
+            <div class="dd-header-actions">
+                <button id="dd-hide" type="button" title="Hide widget (click the rabbit dot to bring it back)" aria-label="Hide Delulu Destroyer widget">–</button>
+                <button id="dd-close" type="button" title="Close panel" aria-label="Close panel">✖</button>
+            </div>
         </div>
         <div class="dd-body">
             <select id="dd-match" class="dd-select">
@@ -116,7 +130,9 @@ export function createDestroyerUi(): DestroyerUi {
 
     return {
         launcher,
+        restoreButton,
         panel,
+        panelHeader: getRequiredElement('dd-header', HTMLDivElement),
         modalOverlay,
         modalTitle: getRequiredElement('dd-modal-title', HTMLHeadingElement),
         modalMessage: getRequiredElement('dd-modal-message', HTMLParagraphElement),
@@ -135,6 +151,7 @@ export function createDestroyerUi(): DestroyerUi {
         importButton: getRequiredElement('dd-import-blocklist', HTMLButtonElement),
         statusEl: getRequiredElement('dd-status', HTMLDivElement),
         closeButton: getRequiredElement('dd-close', HTMLButtonElement),
+        hideButton: getRequiredElement('dd-hide', HTMLButtonElement),
         addButton: getRequiredElement('dd-add', HTMLButtonElement),
         purgeButton: getRequiredElement('dd-purge', HTMLSpanElement),
         modalCancelButton: getRequiredElement('dd-modal-cancel', HTMLButtonElement),

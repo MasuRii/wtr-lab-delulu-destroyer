@@ -4,23 +4,43 @@ export const DESTROYER_STYLES = `
             --dd-accent: #00ffff; --dd-crimson: #ff0055; 
             --dd-tag: #00ffff; --dd-genre: #ff7b72; --dd-custom: #a371f7;
             --dd-border: #30363d;
+            --dd-anchor-right: 20px; --dd-anchor-bottom: 20px;
         }
+
+        body.dd-dragging, body.dd-dragging * { cursor: grabbing !important; user-select: none !important; }
 
         /* Launcher Button */
         #dd-launcher {
-            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+            position: fixed; bottom: var(--dd-anchor-bottom); right: var(--dd-anchor-right); z-index: 9999;
             background: var(--dd-bg); border: 2px solid var(--dd-crimson);
             border-radius: 50px; padding: 8px 16px; display: flex; align-items: center; gap: 8px;
-            cursor: pointer; box-shadow: 0 4px 15px rgba(255, 0, 85, 0.3);
+            cursor: grab; box-shadow: 0 4px 15px rgba(255, 0, 85, 0.3);
             transition: transform 0.2s, box-shadow 0.2s; appearance: none; -webkit-appearance: none;
-            touch-action: manipulation;
+            touch-action: none; user-select: none;
         }
+        #dd-launcher:active { cursor: grabbing; }
         #dd-launcher:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 0, 85, 0.5); }
-        #dd-launcher span { color: var(--dd-text); font-family: monospace; font-weight: bold; font-size: 13px; }
+        #dd-launcher span { color: var(--dd-text); font-family: monospace; font-weight: bold; font-size: 13px; pointer-events: none; }
+        #dd-launcher svg { pointer-events: none; }
+
+        /* Minimized Restore Dot */
+        #dd-restore {
+            position: fixed; bottom: var(--dd-anchor-bottom); right: var(--dd-anchor-right); z-index: 9998;
+            width: 28px; height: 28px; padding: 0; display: none;
+            align-items: center; justify-content: center;
+            background: var(--dd-bg); border: 1px solid var(--dd-crimson);
+            border-radius: 50%; cursor: grab; opacity: 0.55;
+            box-shadow: 0 2px 8px rgba(255, 0, 85, 0.25);
+            transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+            appearance: none; -webkit-appearance: none; touch-action: none; user-select: none;
+        }
+        #dd-restore:active { cursor: grabbing; }
+        #dd-restore:hover { opacity: 1; transform: scale(1.08); box-shadow: 0 4px 12px rgba(255, 0, 85, 0.5); }
+        #dd-restore svg { width: 16px; height: 16px; pointer-events: none; }
 
         /* Floating Panel */
         #dd-panel {
-            position: fixed; bottom: 80px; right: 20px; width: 340px; z-index: 10000;
+            position: fixed; bottom: calc(var(--dd-anchor-bottom) + 60px); right: var(--dd-anchor-right); width: 340px; z-index: 10000;
             background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(8px);
             border: 1px solid var(--dd-border); border-radius: 16px;
             display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
@@ -31,11 +51,20 @@ export const DESTROYER_STYLES = `
         #dd-header {
             background: var(--dd-pane); padding: 12px 16px; border-bottom: 1px solid var(--dd-border);
             border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center;
+            cursor: grab; touch-action: none; user-select: none;
         }
+        #dd-header:active { cursor: grabbing; }
         .dd-title-wrap { display: flex; align-items: center; gap: 8px; }
         .dd-title-wrap h2 { margin: 0; font-size: 14px; color: var(--dd-text); letter-spacing: 1px; font-weight: bold; }
-        #dd-close { background: transparent; border: none; color: #8b949e; cursor: pointer; font-size: 16px; transition: color 0.2s; }
-        #dd-close:hover { color: var(--dd-crimson); }
+        .dd-header-actions { display: flex; align-items: center; gap: 2px; }
+        #dd-close, #dd-hide {
+            background: transparent; border: none; color: #8b949e; cursor: pointer;
+            font-size: 14px; line-height: 1; padding: 0; border-radius: 4px;
+            width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+            transition: color 0.2s, background 0.2s;
+        }
+        #dd-close:hover { color: var(--dd-crimson); background: rgba(255, 0, 85, 0.08); }
+        #dd-hide:hover { color: var(--dd-accent); background: rgba(0, 255, 255, 0.08); }
 
         /* Body Area */
         .dd-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; position: relative; }
