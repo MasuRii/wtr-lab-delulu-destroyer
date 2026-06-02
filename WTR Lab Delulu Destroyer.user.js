@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WTR Lab Delulu Destroyer
 // @namespace    https://docs.scriptcat.org/en/
-// @version      5.1
+// @version      5.2
 // @description  A lightweight, floating, ultra-fast novel purger for WTR Lab.
 // @author       MasuRii
 // @match        https://wtr-lab.com/*
@@ -24,7 +24,7 @@
 /******/ 	"use strict";
 
 ;// ./src/constants.ts
-const SCRIPT_VERSION = '5.1';
+const SCRIPT_VERSION = '5.2';
 const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',
     matchMode: 'wtr_match_mode',
@@ -35,8 +35,8 @@ const STORAGE_KEYS = {
 const DEFAULT_MATCH_MODE = 'broad';
 const SHARE_PAYLOAD_APP = 'wtr-delulu-destroyer';
 const SHARE_PAYLOAD_VERSION = 1;
-const NEXT_BUILD_ID_FALLBACK = 'B_iTIc03bagM1u-Uo_553';
-const TARGET_SELECTORS = '.list-item, .rank-item, .serie-item, .image-wrap.zoom, .rec-item, .recent-item';
+const NEXT_BUILD_ID_FALLBACK = 'AFYVrA8IT1yIw6NoO3KBr';
+const TARGET_SELECTORS = '.recent-item, .nv-list-item, .serie-rankings [data-slot="card"], .series-list [data-slot="card"], .image-wrap.zoom';
 const HIDDEN_ATTRIBUTE = 'data-dd-hidden';
 const PREVIOUS_DISPLAY_ATTRIBUTE = 'data-dd-previous-display';
 const PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE = 'data-dd-previous-display-priority';
@@ -140,7 +140,7 @@ function parseSeriesMetadata(value) {
     }
     const record = value;
     const data = isRecord(record.data) ? record.data : undefined;
-    const rawId = readNumber(record.raw_id) ?? readNumber(record.rawId) ?? readNumber(record.serie_id);
+    const rawId = readNumber(record.raw_id) ?? readNumber(record.rawId) ?? readNumber(record.serie_id) ?? readNumber(record.id);
     const slug = readString(record.slug);
     const title = readString(data?.title);
     const description = readString(data?.description);
@@ -694,9 +694,29 @@ class DeluluDestroyerApp {
             .toLowerCase();
     }
     getMetaTags(container) {
-        return Array.from(container.querySelectorAll('.genre, .tag'))
-            .map((tag) => tag.textContent?.toLowerCase().trim() ?? '')
-            .filter(Boolean);
+        const tags = new Set();
+        // Original: .genre, .tag class (still used in random novels section)
+        container.querySelectorAll('.genre, .tag').forEach((el) => {
+            const text = el.textContent?.toLowerCase().trim();
+            if (text) {
+                tags.add(text);
+            }
+        });
+        // New site: genre tags inside .genres parent container
+        container.querySelectorAll('.genres span, .genres a').forEach((el) => {
+            const text = el.textContent?.toLowerCase().trim();
+            if (text) {
+                tags.add(text);
+            }
+        });
+        // New site: inline-flex capitalize badges (genre/tag badges in novel cards)
+        container.querySelectorAll('span.inline-flex.capitalize').forEach((el) => {
+            const text = el.textContent?.toLowerCase().trim();
+            if (text && text.length < 50) {
+                tags.add(text);
+            }
+        });
+        return Array.from(tags);
     }
     hideContainer(container) {
         if (container.getAttribute(HIDDEN_ATTRIBUTE) !== 'true') {
@@ -726,12 +746,35 @@ class DeluluDestroyerApp {
         container.removeAttribute(PREVIOUS_DISPLAY_PRIORITY_ATTRIBUTE);
     }
     getDestroyContainer(element) {
-        const cardWrapper = element.closest('.card');
-        if (!cardWrapper) {
+        // .recent-item and .nv-list-item are direct containers
+        if (element.classList.contains('recent-item') || element.classList.contains('nv-list-item')) {
             return element;
         }
-        const itemsInCard = cardWrapper.querySelectorAll('.serie-item, .list-item, .rank-item, .rec-item, .recent-item');
-        return itemsInCard.length === 1 ? cardWrapper : element;
+        // [data-slot="card"] in rankings or series list
+        if (element.getAttribute('data-slot') === 'card') {
+            return element;
+        }
+        // .image-wrap.zoom in selector-list (trending/recommendations thumbnails)
+        if (element.classList.contains('image-wrap') && element.classList.contains('zoom') && element.closest('.selector-list')) {
+            return element;
+        }
+        // For .image-wrap.zoom in other contexts, walk up to find card container
+        if (element.classList.contains('image-wrap') && element.classList.contains('zoom')) {
+            // Try to find a data-slot="card" ancestor that is an item, not a section wrapper
+            // Section wrappers have [data-slot="card-header"] children; item cards do not
+            const slotCard = element.closest('[data-slot="card"]');
+            if (slotCard && !slotCard.querySelector('[data-slot="card-header"]')) {
+                return slotCard;
+            }
+            // For horizontal scroll cards (New Novels) and random novels grid items
+            // The image-wrap is inside an <a> inside the individual card div
+            const parent = element.parentElement;
+            if (parent?.parentElement && parent.parentElement !== document.body) {
+                return parent.parentElement;
+            }
+            return element;
+        }
+        return element;
     }
     getTitleText(container) {
         const titleNode = container.querySelector('.title, [title], .rawtitle');
@@ -848,7 +891,15 @@ class DeluluDestroyerApp {
         if (!response.ok || url.origin !== location.origin) {
             return false;
         }
-        return url.pathname.startsWith('/_next/data/') || url.pathname === '/api/home/recent';
+        // Next.js data endpoints (homepage, novel-finder, ranking pages)
+        if (url.pathname.startsWith('/_next/data/')) {
+            return true;
+        }
+        // API endpoints that return series metadata
+        if (url.pathname === '/api/home/recent' || url.pathname.startsWith('/api/serie/ranking')) {
+            return true;
+        }
+        return false;
     }
     renderList() {
         this.ui.blocklistEl.innerHTML = '';
