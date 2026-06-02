@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## [5.2] - 2026-06-02
+
+### Changed
+
+- Updated selectors to match WTR Lab's new frontend redesign (shadcn-style cards, new DOM structure).
+- Updated novel container detection to handle new card patterns: `[data-slot="card"]` for rankings/series list, `.nv-list-item` for trending/recommendations, and new horizontal scroll cards for the New Novels section.
+- Fixed container detection so the New Novels horizontal scroll section hides individual novel cards instead of the entire section wrapper.
+- Updated genre/tag metadata extraction to find tags via `.genres` parent containers and `span.inline-flex.capitalize` badges (new site no longer uses `.genre` class in most places).
+- Updated fetch interceptor to also capture metadata from `/api/serie/ranking` responses.
+- Added `id` field as a fallback for series raw ID extraction in metadata parser.
+- Updated Next.js build ID fallback to match current site deployment.
+- Bumped version to 5.2.
+
 ## [5.1] - 2026-05-16
 
 ### Added
