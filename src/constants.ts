@@ -1,4 +1,4 @@
-export const SCRIPT_VERSION = '5.1';
+export const SCRIPT_VERSION = '5.2';
 
 export const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',
@@ -14,9 +14,9 @@ export const SHARE_PAYLOAD_APP = 'wtr-delulu-destroyer';
 
 export const SHARE_PAYLOAD_VERSION = 1;
 
-export const NEXT_BUILD_ID_FALLBACK = 'B_iTIc03bagM1u-Uo_553';
+export const NEXT_BUILD_ID_FALLBACK = 'AFYVrA8IT1yIw6NoO3KBr';
 
-export const TARGET_SELECTORS = '.list-item, .rank-item, .serie-item, .image-wrap.zoom, .rec-item, .recent-item';
+export const TARGET_SELECTORS = '.recent-item, .nv-list-item, .serie-rankings [data-slot="card"], .series-list [data-slot="card"], .image-wrap.zoom';
 
 export const HIDDEN_ATTRIBUTE = 'data-dd-hidden';
 export const PREVIOUS_DISPLAY_ATTRIBUTE = 'data-dd-previous-display';

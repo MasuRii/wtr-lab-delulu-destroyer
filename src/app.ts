@@ -596,9 +596,33 @@ export class DeluluDestroyerApp {
     }
 
     private getMetaTags(container: HTMLElement): string[] {
-        return Array.from(container.querySelectorAll('.genre, .tag'))
-            .map((tag) => tag.textContent?.toLowerCase().trim() ?? '')
-            .filter(Boolean);
+        const tags = new Set<string>();
+
+        // Original: .genre, .tag class (still used in random novels section)
+        container.querySelectorAll('.genre, .tag').forEach((el) => {
+            const text = el.textContent?.toLowerCase().trim();
+            if (text) {
+                tags.add(text);
+            }
+        });
+
+        // New site: genre tags inside .genres parent container
+        container.querySelectorAll('.genres span, .genres a').forEach((el) => {
+            const text = el.textContent?.toLowerCase().trim();
+            if (text) {
+                tags.add(text);
+            }
+        });
+
+        // New site: inline-flex capitalize badges (genre/tag badges in novel cards)
+        container.querySelectorAll('span.inline-flex.capitalize').forEach((el) => {
+            const text = el.textContent?.toLowerCase().trim();
+            if (text && text.length < 50) {
+                tags.add(text);
+            }
+        });
+
+        return Array.from(tags);
     }
 
     private hideContainer(container: HTMLElement): void {
@@ -635,14 +659,41 @@ export class DeluluDestroyerApp {
     }
 
     private getDestroyContainer(element: HTMLElement): HTMLElement {
-        const cardWrapper = element.closest<HTMLElement>('.card');
-
-        if (!cardWrapper) {
+        // .recent-item and .nv-list-item are direct containers
+        if (element.classList.contains('recent-item') || element.classList.contains('nv-list-item')) {
             return element;
         }
 
-        const itemsInCard = cardWrapper.querySelectorAll('.serie-item, .list-item, .rank-item, .rec-item, .recent-item');
-        return itemsInCard.length === 1 ? cardWrapper : element;
+        // [data-slot="card"] in rankings or series list
+        if (element.getAttribute('data-slot') === 'card') {
+            return element;
+        }
+
+        // .image-wrap.zoom in selector-list (trending/recommendations thumbnails)
+        if (element.classList.contains('image-wrap') && element.classList.contains('zoom') && element.closest('.selector-list')) {
+            return element;
+        }
+
+        // For .image-wrap.zoom in other contexts, walk up to find card container
+        if (element.classList.contains('image-wrap') && element.classList.contains('zoom')) {
+            // Try to find a data-slot="card" ancestor that is an item, not a section wrapper
+            // Section wrappers have [data-slot="card-header"] children; item cards do not
+            const slotCard = element.closest<HTMLElement>('[data-slot="card"]');
+            if (slotCard && !slotCard.querySelector('[data-slot="card-header"]')) {
+                return slotCard;
+            }
+
+            // For horizontal scroll cards (New Novels) and random novels grid items
+            // The image-wrap is inside an <a> inside the individual card div
+            const parent = element.parentElement;
+            if (parent?.parentElement && parent.parentElement !== document.body) {
+                return parent.parentElement;
+            }
+
+            return element;
+        }
+
+        return element;
     }
 
     private getTitleText(container: HTMLElement): string {
@@ -798,7 +849,17 @@ export class DeluluDestroyerApp {
             return false;
         }
 
-        return url.pathname.startsWith('/_next/data/') || url.pathname === '/api/home/recent';
+        // Next.js data endpoints (homepage, novel-finder, ranking pages)
+        if (url.pathname.startsWith('/_next/data/')) {
+            return true;
+        }
+
+        // API endpoints that return series metadata
+        if (url.pathname === '/api/home/recent' || url.pathname.startsWith('/api/serie/ranking')) {
+            return true;
+        }
+
+        return false;
     }
 
     private renderList(): void {

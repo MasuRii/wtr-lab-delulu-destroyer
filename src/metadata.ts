@@ -72,7 +72,7 @@ function parseSeriesMetadata(value: unknown): SeriesMetadata | null {
 
     const record = value as UnknownRecord;
     const data = isRecord(record.data) ? record.data : undefined;
-    const rawId = readNumber(record.raw_id) ?? readNumber(record.rawId) ?? readNumber(record.serie_id);
+    const rawId = readNumber(record.raw_id) ?? readNumber(record.rawId) ?? readNumber(record.serie_id) ?? readNumber(record.id);
     const slug = readString(record.slug);
     const title = readString(data?.title);
     const description = readString(data?.description);
