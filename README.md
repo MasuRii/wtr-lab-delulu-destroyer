@@ -77,7 +77,7 @@ The userscript metadata uses `@run-at document-end` and `@noframes`, and the sou
 
 ## Compatibility
 
-- Current userscript version: `5.1`
+- Current userscript version: `5.2`
 - Target site: `https://wtr-lab.com/*`
 - Recommended managers: ScriptCat, Violentmonkey, and Stay
 - Output format: bundled JavaScript userscript generated from modular TypeScript
