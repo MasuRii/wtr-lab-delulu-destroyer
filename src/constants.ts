@@ -1,4 +1,4 @@
-export const SCRIPT_VERSION = '5.2';
+export const SCRIPT_VERSION = '5.2.1';
 
 export const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',

@@ -6,7 +6,7 @@ Thanks for helping improve WTR Lab Delulu Destroyer.
 
 - Keep the runtime userscript lightweight.
 - Preserve the single-file `.user.js` distribution output.
-- Make source changes in modular TypeScript under `src/`.
+- Make runtime source changes in modular TypeScript under `src/`; do not add runtime `.js` files under `src/`.
 - Do not add tracking, analytics, or remote telemetry.
 - Avoid changes that interfere with WTR Lab reading pages.
 
@@ -15,7 +15,7 @@ Thanks for helping improve WTR Lab Delulu Destroyer.
 Before opening a pull request, run:
 
 ```bash
-npm install
+npm ci
 npm run validate
 ```
 

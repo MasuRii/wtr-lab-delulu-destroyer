@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WTR Lab Delulu Destroyer
 // @namespace    https://docs.scriptcat.org/en/
-// @version      5.2
+// @version      5.2.1
 // @description  A lightweight, floating, ultra-fast novel purger for WTR Lab.
 // @author       MasuRii
 // @match        https://wtr-lab.com/*
@@ -24,7 +24,7 @@
 /******/ 	"use strict";
 
 ;// ./src/constants.ts
-const SCRIPT_VERSION = '5.2';
+const SCRIPT_VERSION = '5.2.1';
 const STORAGE_KEYS = {
     savedItems: 'wtr_saved_items',
     matchMode: 'wtr_match_mode',

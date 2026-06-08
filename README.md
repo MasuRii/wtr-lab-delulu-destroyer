@@ -13,7 +13,7 @@ Tired of scrolling through WTR Lab and seeing genres, tags, or novel tropes you 
 
 Out of sight, out of mind.
 
-[Install from Greasy Fork](https://greasyfork.org/en/scripts/575938-wtr-lab-delulu-destroyer) · [Install from GitHub](https://github.com/MasuRii/wtr-lab-delulu-destroyer/raw/main/WTR%20Lab%20Delulu%20Destroyer.user.js)
+[Install from Greasy Fork](https://greasyfork.org/en/scripts/575938-wtr-lab-delulu-destroyer) · [Install from GitHub](https://github.com/MasuRii/wtr-lab-delulu-destroyer/raw/main/dist/wtr-lab-delulu-destroyer.user.js)
 
 ## Preview
 
@@ -77,7 +77,7 @@ The userscript metadata uses `@run-at document-end` and `@noframes`, and the sou
 
 ## Compatibility
 
-- Current userscript version: `5.2`
+- Current userscript version: `5.2.1`
 - Target site: `https://wtr-lab.com/*`
 - Recommended managers: ScriptCat, Violentmonkey, and Stay
 - Output format: bundled JavaScript userscript generated from modular TypeScript
@@ -85,10 +85,12 @@ The userscript metadata uses `@run-at document-end` and `@noframes`, and the sou
 
 ## Development
 
-The source is modular TypeScript under `src/`. Webpack bundles it back into the distributable userscript file:
+The runtime source is modular TypeScript under `src/`. Webpack bundles it back into distributable userscript artifacts under `dist/`; do not hand-edit generated artifacts.
 
 ```bash
-npm install
+npm ci
+npm run typecheck
+npm run lint
 npm run build
 npm run validate
 ```
@@ -98,7 +100,9 @@ Important files:
 - `src/index.ts` - userscript bootstrap
 - `src/app.ts` - filtering, UI state, routing, and event behavior
 - `userscript.metadata.cjs` - userscript metadata header
-- `webpack.config.cjs` - bundles TypeScript into `WTR Lab Delulu Destroyer.user.js`
+- `webpack.config.cjs` - bundles TypeScript into `dist/wtr-lab-delulu-destroyer.user.js`
+
+Validation standard: `npm run validate` runs TypeScript checking, ESLint with zero warnings, the Webpack build, generated userscript syntax checking, and metadata validation.
 
 ## Privacy
 

@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## [5.2.1] - 2026-06-08
+
+### Changed
+
+- Refreshed release metadata and generated install artifacts for the 5.2.1 patch release.
+- No runtime behavior changes were introduced.
+
 ## [5.2] - 2026-06-02
 
 ### Changed
