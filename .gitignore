@@ -35,6 +35,9 @@ coverage/
 .tmp/
 temp/
 
+# Workspace guardrails
+docs/
+
 # Archives
 *.zip
 *.tar
